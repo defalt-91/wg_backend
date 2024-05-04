@@ -2,13 +2,12 @@ from app import  models
 import uuid
 from app.crud.crud_client import crud_client
 from app.api import deps
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse,Response
 from app.models.client import Client
 from app.schemas.client import ClientCreate,ClientsRxTx,ClientOut,ClientUpdate
 from app.crud.crud_wgserver import crud_wgserver
 from sqlalchemy.orm import Session
-from .client_utils import ClientService
 from app.api.deps import get_session
 from io import StringIO
 
@@ -34,20 +33,28 @@ async def create_client(
     ):
     # new_client = client_service.createClient(client_in.name)
     # return client_service.getClient(new_client['id'])
-    return crud_client.create(db,obj_in=client_in,server=crud_wgserver.get_server_config(db))
+    wgserver = crud_wgserver.get_server_config(session=db)
+    new_client = crud_client.create(db,obj_in=client_in,server=wgserver)
+    crud_wgserver.save_and_sync_wg_config(db=db)
+    return new_client
 
 
 @router.put('/client/{client_id}')
 async def update_client(client_id:uuid.UUID,client:ClientUpdate,db:Session=Depends(get_session)):
     # client_service.update_client(client=client)
-    db_client = db.get(Client,client_id)
-    return crud_client.update(db,db_obj=db_client,obj_in=client)
+    # wgserver = crud_wgserver.get_server_config(session=db)
+    db_client = crud_client.get(db, id = client_id)
+    updated_client = crud_client.update(db,db_obj=db_client,obj_in=client)
+    crud_wgserver.save_and_sync_wg_config(db=db)
+    return updated_client
 
 
 @router.delete('/client/{client_id}')
 async def delete_client(client_id:uuid.UUID,db:Session=Depends(get_session)):
     # deleted_user = client_service.deleteClient(client_id)
+    # wgserver = crud_wgserver.get_server_config(session=db)
     deleted_client = crud_client.remove(db=db,id=client_id)
+    crud_wgserver.save_and_sync_wg_config(db=db)
     return deleted_client
 
 @router.get('/client/{client_id}/svgqrcode')

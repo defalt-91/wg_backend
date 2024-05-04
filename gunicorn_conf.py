@@ -41,10 +41,8 @@ else:
 		web_concurrency = min(web_concurrency, use_max_workers)
 if settings.DEBUG:
 	web_concurrency = 1
-accesslog_var = settings.ACCESS_LOG
-use_accesslog = accesslog_var or None
-errorlog_var = settings.ERROR_LOG
-use_errorlog = errorlog_var or None
+
+
 graceful_timeout_str = settings.GRACEFUL_TIMEOUT
 timeout_str = settings.TIMEOUT
 keepalive_str = settings.KEEP_ALIVE
@@ -94,9 +92,9 @@ daemon = False
 # group = 1000
 initgroups = False
 umask = 0
-worker_tmp_dir = str(Path(__name__).resolve().parent / "logs/guni/")
+worker_tmp_dir = str(Path(__name__).resolve().parent / "logs/gunicorn/")
 
-pidfile = str(Path(__name__).resolve().parent / "logs/guni/pid.txt")  # A filename to use for the PID file.
+pidfile = str(Path(__name__).resolve().parent / "logs/gunicorn/pid.pid")  # A filename to use for the PID file.
 tmp_upload_dir = None
 # secure_scheme_headers = {'X-FORWARDED-PROTOCOL': 'ssl', 'X-FORWARDED-PROTO': 'https', 'X-FORWARDED-SSL': 'on'}
 secure_scheme_headers = {'X-FORWARDED-PROTOCOL': 'ssl', 'X-FORWARDED-PROTO': 'https', 'X-FORWARDED-SSL': 'on'}
@@ -109,10 +107,10 @@ proxy_allow_ips = "['127.0.0.1','*']"
 strip_header_spaces = False
 
 """ logging """
-accesslog = use_accesslog
+accesslog = settings.ACCESS_LOG
 disable_redirect_access_to_syslog = False
 # access_log_format                 = %(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"
-errorlog = use_errorlog
+errorlog = settings.ERROR_LOG
 loglevel = use_loglevel
 capture_output = False
 logger_class = 'gunicorn.glogging.Logger'
@@ -220,6 +218,5 @@ log_data = {
 	"host": host,
 	"port": port,
 	"wsgi_app": wsgi_app,
-	
 }
 # print(json.dumps(log_data))

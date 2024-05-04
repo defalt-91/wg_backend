@@ -34,7 +34,12 @@ def user_not_found():
 	return HTTPException(
 		status_code=status.HTTP_409_CONFLICT, detail="User with this id didn't exist"
 	)
-
+ 
+@lru_cache
+def client_not_found():
+	return HTTPException(
+		status_code=status.HTTP_409_CONFLICT, detail="Client with this id didn't exist"
+	)
 
 @lru_cache
 def data_not_acceptable():
@@ -177,7 +182,6 @@ unauthorized_exception = credentials_exceptions(status.HTTP_401_UNAUTHORIZED)
 def create_exception(detail: Union[str, dict]) -> Callable:
 	def inner_status(status_code: status) -> HTTPException:
 		return HTTPException(detail=detail, status_code=status_code)
-	
 	return inner_status
 
 

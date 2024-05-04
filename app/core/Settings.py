@@ -12,20 +12,11 @@ class Settings(BaseSettings):
     BACKEND_SERVER_HOST:str='0.0.0.0'
     BACKEND_SERVER_PORT:int=8008
     LOG_LEVEL:str
-    ACCESS_LOG:str="-"
-    ERROR_LOG:str
+    ACCESS_LOG:str="/var/log/gunicorn/access.log"
+    ERROR_LOG:str = '/var/log/gunicorn/error.log'
     GRACEFUL_TIMEOUT:int=120
     TIMEOUT:int=120
     KEEP_ALIVE:int=5
-
-    # @field_validator('BACKEND_CORS_ORIGINS',mode='after')
-    # @classmethod
-    # def turl_url_to_str(cls,v):
-    #     str_list:list[str] = []
-    #     for i in v:
-    #         str_list.append(str(i))
-    #         print(str(i))
-    #     return ['http://localhost:4200/']
     SESSION_SECRET:str='secret'
     SECRET_KEY:str='secret'
     FIRST_SUPERUSER:str='admin'
@@ -50,7 +41,6 @@ class Settings(BaseSettings):
     LANG:str = 'en'
     UI_TRAFFIC_STATS :bool= True
     SQLALCHEMY_DATABASE_URL:str = "sqlite:///./sqlite.db"
-    # SQLALCHEMY_DATABASE_URL = "postgresql://user:password@postgresserver/db"
     DEBUG:bool = True
 
 

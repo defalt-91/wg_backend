@@ -1,4 +1,3 @@
-from typing import Type
 import qrcode
 import uuid
 from sqlalchemy.orm import Session

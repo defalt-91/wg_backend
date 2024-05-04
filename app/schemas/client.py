@@ -82,7 +82,7 @@ class ClientInDBBase(ClientBase):
 
 # Additional properties to return via API
 class ClientOut(ClientInDBBase):
-    downloadableConfig: Optional[str] = None
+    downloadableConfig: Optional[bool] = None
     transferRx:Optional[int]=0
     transferTx:Optional[int]=0
     allowedIPs: Optional[str] = None

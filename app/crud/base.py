@@ -44,7 +44,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 	) -> Optional[List[ModelType]]:
         object_list =  db.query(self.model).offset(skip).limit(limit).all()
         if not object_list:
-            raise errors.not_found_error()
+            raise errors.client_not_found()
         return object_list
 
 
@@ -55,11 +55,14 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         obj_in: Union[UpdateSchemaType, Dict[str, Any]],
         db_obj: ModelType,
 	) -> Optional[ModelType]:
+        if not db_obj:
+            raise errors.not_found_error()
         if isinstance(obj_in, dict):
             update_data = obj_in
         else:
             update_data = obj_in.model_dump(exclude_unset=True)
         obj_data = jsonable_encoder(db_obj)
+        # print(obj_data)
         for field in obj_data:
             if field in update_data:
                 setattr(db_obj, field, update_data[field])
@@ -70,8 +73,10 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
     def remove(self, db: Session, *, id: int) -> ModelType:
         obj = db.query(self.model).get(id)
+        if not obj:
+            raise errors.not_found_error()
         db.delete(obj)
-        db.commit()
+        # db.commit()
         return obj
         
     def save(self,session: Session, obj: ModelType) -> ModelType:

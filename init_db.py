@@ -24,7 +24,6 @@ def init_db(db: Session) -> None:
             is_superuser=True,
         )
         user_dal.create(db, obj_in=user_in)
-
     """ load client config from db or create one"""
     orm_wg_server = crud_wgserver.get_server_config(session=db)
     if not orm_wg_server:
@@ -33,7 +32,6 @@ def init_db(db: Session) -> None:
         orm_wg_server = WGServer(**new_server_conf.model_dump())
         db.add(orm_wg_server)
         db.commit()
-        # db.refresh
     crud_wgserver.save_wgserver_dot_conf(orm_server=orm_wg_server)
     try:
         subprocess.run(['wg-quick', 'down','wg0']).stdout
