@@ -18,7 +18,7 @@ class ClientBase(BaseModel):
     updated_at:Optional[datetime] = None
     downloadableConfig: Optional[bool]= None;
     persistentKeepalive: Optional[str] = None
-    latestHandshakeAt: Optional[str] = None
+    latestHandshakeAt: Optional[datetime] = None
     transferRx: Optional[int] = None
     transferTx: Optional[int] = None
     allowedIPs: Optional[str] = None
@@ -82,7 +82,7 @@ class ClientInDBBase(ClientBase):
 
 # Additional properties to return via API
 class ClientOut(ClientInDBBase):
-    downloadableConfig: Optional[str] = None
+    downloadableConfig: Optional[bool] = None
     transferRx:Optional[int]=0
     transferTx:Optional[int]=0
     allowedIPs: Optional[str] = None
@@ -100,21 +100,4 @@ class ClientOut(ClientInDBBase):
 class ClientsRxTx(ClientInDBBase):
     transferRx:int = 0
     transferTx:int = 0
-
-class ClientFromWG(ClientBase):
-    id: uuid.UUID
-    name: str
-    enabled: bool
-    address: str
-    publicKey: str
-    created_at: datetime
-    downloadableConfig: Optional[bool]=None
-    persistentKeepalive: Optional[str]=None
-    latestHandshakeAt: Optional[str]=None
-    transferRx: Optional[int]=None
-    transferTx: Optional[int]=None
-    updatedAt: datetime
-    allowedIPs: Optional[list[str]]=[]
-
-
 

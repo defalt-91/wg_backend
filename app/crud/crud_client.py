@@ -65,7 +65,7 @@ class CRUDClient(CRUDBase[Client, ClientCreate, ClientUpdate]):
             for client in orm_client_list:
                 if client.publicKey == publicKey:
                     if latestHandshakeAt != '0':
-                        client.latestHandshakeAt = datetime.fromtimestamp(int(latestHandshakeAt))
+                        client.latestHandshakeAt = datetime.datetime.fromtimestamp(int(latestHandshakeAt))
                     else:
                         client.latestHandshakeAt = None
                     client.persistentKeepalive = persistentKeepalive
@@ -76,7 +76,7 @@ class CRUDClient(CRUDBase[Client, ClientCreate, ClientUpdate]):
         return orm_client_list
     def client_qrconde_svg(self,db:Session,client_id:uuid.UUID):
         client_config = self.getClientConfiguration(db,client_id=client_id)
-        method = "fragment"
+        method = "path"
         if method == 'basic':
             # Simple factory, just a set of rects.
             factory = qrcode.image.svg.SvgImage
@@ -121,13 +121,5 @@ AllowedIPs = {settings.WG_ALLOWED_IPS}
 PersistentKeepalive = {settings.WG_PERSISTENT_KEEPALIVE}
 Endpoint = {settings.WG_HOST}:{settings.WG_PORT}"""
 
-    # def get_config(self,session:Session,server:WGServerInDB) -> dict:
-    #     server_in = session.query(WGServer).first()
-    #     client_list = session.query(self.model).all()
-    #     # (Client).order_by(-Client.updated_at)
-    #     # returned_tuple = session.execute(statement)
-    #     # client_list = returned_tuple.scalars().all()
-    #     self.__save_wgserver_dot_conf(client_list)
-    #     return 
 
 crud_client = CRUDClient(Client)

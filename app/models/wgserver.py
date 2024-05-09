@@ -10,8 +10,11 @@ from app.db.registry import DateMixin, NameMixin,mapper_registry
 class WGServer(DateMixin,NameMixin):
 	id = Column(Integer,primary_key=True,index=True,nullable=False,autoincrement=True,unique=True)
 	privateKey = Column(String(255),nullable=False,)
-	publicKey = Column(String(255),nullable=False,)
+	publicKey = Column(String(255),nullable=True,)
 	address = Column(String(255),nullable=False,)
+	port = Column(Integer,nullable=False)
+	interface = Column(String(50),nullable=False)
+	mtu = Column(Integer,nullable=True)
 	clients = relationship(
      "Client",
 		back_populates="server",

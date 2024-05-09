@@ -8,7 +8,6 @@ from app.models.client import Client
 from app.schemas.client import ClientCreate,ClientsRxTx,ClientOut,ClientUpdate
 from app.crud.crud_wgserver import crud_wgserver
 from sqlalchemy.orm import Session
-from .client_utils import ClientService
 from app.api.deps import get_session
 from io import StringIO
 

@@ -37,15 +37,15 @@ def get_session() -> Generator:
 		session.close()
 
 
-# class SessionContextManager:
-# 	def __init__(self):
-# 		self.session = SessionFactory()
+class SessionContextManager:
+	def __init__(self):
+		self.session = SessionFactory()
 	
-# 	def __enter__(self):
-# 		return self.session
+	def __enter__(self):
+		return self.session
 	
-# 	def __exit__(self, exc_type, exc_val, exc_tb):
-# 		self.session.close()
+	def __exit__(self, exc_type, exc_val, exc_tb):
+		self.session.close()
 
 
 # async def get_session2():

@@ -6,30 +6,10 @@ from app.schemas.wgserver import WGServerCreate,WGServerUpdate
 import subprocess
 from app.core.Settings import get_settings
 import logging
-import os
+# from .wg_server import server
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 settings = get_settings()
-
-WG_PRE_UP = settings.WG_PRE_UP
-WG_POST_UP_STR_1 = f"""
-iptables -t nat -A POSTROUTING -s {settings.WG_DEFAULT_ADDRESS.replace('x', '0')}/24 -o {settings.WG_DEVICE} -j MASQUERADE;
-iptables -A INPUT -p udp -m udp --dport 51820 -j ACCEPT;
-iptables -A FORWARD -i wg0 -j ACCEPT;
-iptables -A FORWARD -o wg0 -j ACCEPT;
-""".split('\n')
-WG_POST_UP_STR_2 = ' '.join(WG_POST_UP_STR_1)
-WG_POST_UP = os.environ.get('WG_POST_UP',WG_POST_UP_STR_2)
-
-WG_PRE_DOWN = settings.WG_PRE_DOWN
-WG_POST_DOWN_STR_1 = f"""
-iptables -t nat -D POSTROUTING -s {settings.WG_DEFAULT_ADDRESS.replace('x', '0')}/24 -o {settings.WG_DEVICE} -j MASQUERADE;
-iptables -D INPUT -p udp -m udp --dport 51820 -j ACCEPT;
-iptables -D FORWARD -i wg0 -j ACCEPT;
-iptables -D FORWARD -o wg0 -j ACCEPT;
-""".split('\n')
-WG_POST_DOWN_STR_2 = ' '.join(WG_POST_DOWN_STR_1)
-WG_POST_DOWN = os.environ.get('WG_POST_DOWN',WG_POST_DOWN_STR_2)
 
 class CRUDWGServer(CRUDBase[WGServer,WGServerCreate,WGServerUpdate]):
     def get_server_config(self, session: Session) -> WGServer:
@@ -57,10 +37,10 @@ class CRUDWGServer(CRUDBase[WGServer,WGServerCreate,WGServerUpdate]):
 PrivateKey = {orm_server.privateKey}
 Address = {orm_server.address}/24
 ListenPort = {settings.WG_PORT}
-PreUp = {WG_PRE_UP}
-PostUp = {WG_POST_UP}
-PreDown = {WG_PRE_DOWN}
-PostDown = {WG_POST_DOWN}"""
+PreUp = {settings.WG_PRE_UP}
+PostUp = {settings.WG_POST_UP}
+PreDown = {settings.WG_PRE_DOWN}
+PostDown = {settings.WG_POST_DOWN}"""
         # clients = self.config['clients']
         # all_db_clients=db.query(Client).all()
         for client in orm_server.clients:
@@ -78,9 +58,9 @@ PublicKey = {client.publicKey}
 {pre_shared_key_str}
 AllowedIPs = {client.address}/32"""
         logger.debug('Config saving...')
-        with open(f"{settings.WG_PATH}wg0.conf","w") as f :
+        with open(f"{settings.WG_CONFIG_PATH}wg0.conf","w") as f :
             f.write(result)
-        # with open(f"{WG_PATH}wg0.json", "w") as f:
+        # with open(f"{WG_CONFIG_PATH}wg0.json", "w") as f:
         #     json_object = json.dumps(self.config,indent=4)
             # f.write(json_object)
         logger.debug('Config saved.')

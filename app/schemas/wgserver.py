@@ -9,12 +9,16 @@ class WGServerBase(BaseModel):
     privateKey:Optional[str]=None
     publicKey:Optional[str]=None
     address:Optional[str]=None
-    
+    port:Optional[int]=None
+    interface:Optional[str]=None
+    mtu:Optional[int]=None
         
 class WGServerCreate(WGServerBase):
     privateKey:str
     publicKey:str
     address:str
+    port:int
+    interface:str
     # @model_validator(mode='after')
     # def create_server(self):
         # command = ["wg","pubkey"]
