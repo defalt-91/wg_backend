@@ -1,10 +1,8 @@
 from functools import lru_cache
-import os
+import subprocess
 from typing import Optional
 from pydantic_settings import BaseSettings,SettingsConfigDict
-from pydantic import HttpUrl,IPvAnyAddress,field_validator,model_validator
-from pydantic.networks import AnyHttpUrl
-from dotenv import load_dotenv
+from pydantic import IPvAnyAddress,model_validator
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env")
@@ -27,9 +25,9 @@ class Settings(BaseSettings):
     USERS_OPEN_REGISTRATION:bool
     PROJECT_NAME :Optional[str] = 'any'
     WG_CONFIG_PATH:Optional[str] = "/etc/wireguard/"
-    # PORT:int = 51821
+    # WG_PEERS_CONFIG_PATH:Optional[str] = None
     WEBUI_HOST:IPvAnyAddress = '0.0.0.0'
-    WG_DEVICE:str
+    WG_DEVICE:Optional[str]='eth0'
     WG_INTERFACE:Optional[str] = 'wg0'
     WG_HOST:IPvAnyAddress = '192.168.1.55'
     WG_PORT:Optional[int] = 51820
@@ -51,6 +49,9 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def create_post_up_str(self):
+        # self.WG_PEERS_CONFIG_PATH = f"{self.WG_CONFIG_PATH}{self.WG_INTERFACE}-peers.conf"
+        cmd=["ip route |grep default |awk '{print $5}'"]
+        self.WG_DEVICE=subprocess.run(args=cmd,shell="/bin/sh",capture_output=True).stdout.decode().strip()
         self.WG_SUBNET = f"{self.WG_DEFAULT_ADDRESS.replace('x','0')}/24"
         if not self.WG_POST_UP:
             WG_POST_UP_STR = [
@@ -58,7 +59,7 @@ class Settings(BaseSettings):
                 "iptables -A INPUT -p udp -m udp --dport 51820 -j ACCEPT;",
                 "iptables -A FORWARD -i %i -o wg0 -j ACCEPT;",
                 "iptables -A FORWARD -i wg0 -o %i -j ACCEPT;",
-                f"wg addconf %i {self.WG_CONFIG_PATH}{self.WG_INTERFACE}-peers.conf;"
+                # "wg addconf %i /etc/wireguard/wg0-peers.conf;"
             ]
             self.WG_POST_UP = ' '.join(WG_POST_UP_STR)
         if not self.WG_POST_DOWN:
@@ -67,7 +68,7 @@ class Settings(BaseSettings):
                 "iptables -D INPUT -p udp -m udp --dport 51820 -j ACCEPT;",
                 "iptables -A FORWARD -i %i -o wg0 -j ACCEPT;",
                 "iptables -A FORWARD -i wg0 -o %i -j ACCEPT;",
-                # "PostUp = wg addconf %i /etc/wireguard/wg0-peers.conf"
+                # 
             ]
             self.WG_POST_DOWN= ' '.join(WG_POST_DOWN_STR)
         return self

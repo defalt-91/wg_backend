@@ -45,6 +45,11 @@ class SessionContextManager:
 		return self.session
 	
 	def __exit__(self, exc_type, exc_val, exc_tb):
+		print('--> here exit ',exc_type)
+		print('--> here exit ',exc_type)
+		print('--> here exit ',exc_type)
+		print('--> here exit ',exc_type)
+		print('--> here exit ',exc_type)
 		self.session.close()
 
 

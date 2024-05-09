@@ -81,23 +81,23 @@ class ClientInDBBase(ClientBase):
         from_attributes= True
 
 # Additional properties to return via API
-class ClientOut(ClientInDBBase):
-    downloadableConfig: Optional[bool] = None
-    transferRx:Optional[int]=0
-    transferTx:Optional[int]=0
+class ClientOut(BaseModel):
+    id:uuid.UUID
+    name:str
+    enabled:bool
+    address: Optional[str] = None
+    downloadableConfig: bool = True
+    transferRx:int
+    transferTx:int
     allowedIPs: Optional[str] = None
     latestHandshakeAt:Optional[datetime] = None
-    persistentKeepalive:Optional[str] = None
-    @model_validator(mode="after")
-    def verify_fields(self) -> Self:
-        self.downloadableConfig = True if self.privateKey else False
-        return self
-    # transferRx:int
-    # transferTx:int
-# Additional properties stored in DB
+    persistentKeepalive: Optional[str] = None
+    created_at: datetime
+    updated_at:Optional[datetime] = None
 
 
-class ClientsRxTx(ClientInDBBase):
-    transferRx:int = 0
-    transferTx:int = 0
+class ClientsRxTx(BaseModel):
+    transferRx:int 
+    transferTx:int 
+    id:uuid.UUID
 

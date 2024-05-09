@@ -195,11 +195,11 @@
         },
         "django": {
             "hashes": [
-                "sha256:4bd01a8c830bb77a8a3b0e7d8b25b887e536ad17a81ba2dce5476135c73312bd",
-                "sha256:916423499d75d62da7aa038d19aef23d23498d8df229775eb0a6309ee1013775"
+                "sha256:8363ac062bb4ef7c3f12d078f6fa5d154031d129a15170a1066412af49d30905",
+                "sha256:ff1b61005004e476e0aeea47c7f79b85864c70124030e95146315396f1e7951f"
             ],
             "markers": "python_version >= '3.10'",
-            "version": "==5.0.4"
+            "version": "==5.0.6"
         },
         "djangorestframework": {
             "hashes": [
@@ -246,11 +246,11 @@
         },
         "fastapi-cli": {
             "hashes": [
-                "sha256:589565ba758432632eadcf7b950e0ec76bb283b549784d9df17f261a8a9de476",
-                "sha256:d7a8ec89fd52ad16c52de9fe7299e4b22c7a32e1bf28aa886e5517e4927423dd"
+                "sha256:3b6e4d2c4daee940fb8db59ebbfd60a72c4b962bcf593e263e4cc69da4ea3d7f",
+                "sha256:ae233115f729945479044917d949095e829d2d84f56f55ce1ca17627872825a5"
             ],
             "markers": "python_version >= '3.8'",
-            "version": "==0.0.2"
+            "version": "==0.0.3"
         },
         "greenlet": {
             "hashes": [

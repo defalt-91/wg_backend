@@ -1,9 +1,7 @@
-from sqlalchemy import TIMESTAMP,ClauseList, Boolean, Column, Integer, String,Uuid,ForeignKey
-from sqlalchemy.orm.relationships import Relationship
+from sqlalchemy import TIMESTAMP,Boolean, Column, Integer, String,Uuid,ForeignKey
 from sqlalchemy.orm import relationship
 import uuid
 from app.db.registry import DateMixin, NameMixin,mapper_registry
-from app.models.wgserver import WGServer
 
 @mapper_registry.mapped
 class Client(DateMixin,NameMixin):
@@ -16,9 +14,11 @@ class Client(DateMixin,NameMixin):
     preSharedKey = Column(String(256), nullable=False)
     latestHandshakeAt = Column(TIMESTAMP(timezone=True), index=True,nullable=True,doc='Last hand shake at')
     persistentKeepalive = Column(String(20), nullable=True)
-    transferRx = Column(Integer,nullable=True)
-    transferTx = Column(Integer,nullable=True)
+    transferRx = Column(Integer,nullable=False,default=lambda:0)
+    transferTx = Column(Integer,nullable=False,default=lambda:0)
     allowedIPs = Column(String(255),nullable=True)
+    friendly_name = Column(String(255),nullable=True)
+    friendly_json = Column(String(255),nullable=True)
     # wgserver_id = Column(ForeignKey(WGServer.id, ondelete="CASCADE"), nullable=False)
     wgserver_id = Column(Integer,ForeignKey('wgserver.id', ondelete="CASCADE"), nullable=False)
 
