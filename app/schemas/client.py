@@ -18,7 +18,7 @@ class ClientBase(BaseModel):
     updated_at:Optional[datetime] = None
     downloadableConfig: Optional[bool]= None;
     persistentKeepalive: Optional[str] = None
-    latestHandshakeAt: Optional[str] = None
+    latestHandshakeAt: Optional[datetime] = None
     transferRx: Optional[int] = None
     transferTx: Optional[int] = None
     allowedIPs: Optional[str] = None
@@ -87,34 +87,13 @@ class ClientOut(ClientInDBBase):
     transferTx:Optional[int]=0
     allowedIPs: Optional[str] = None
     latestHandshakeAt:Optional[datetime] = None
-    persistentKeepalive:Optional[str] = None
-    @model_validator(mode="after")
-    def verify_fields(self) -> Self:
-        self.downloadableConfig = True if self.privateKey else False
-        return self
-    # transferRx:int
-    # transferTx:int
-# Additional properties stored in DB
-
-
-class ClientsRxTx(ClientInDBBase):
-    transferRx:int = 0
-    transferTx:int = 0
-
-class ClientFromWG(ClientBase):
-    id: uuid.UUID
-    name: str
-    enabled: bool
-    address: str
-    publicKey: str
+    persistentKeepalive: Optional[str] = None
     created_at: datetime
-    downloadableConfig: Optional[bool]=None
-    persistentKeepalive: Optional[str]=None
-    latestHandshakeAt: Optional[str]=None
-    transferRx: Optional[int]=None
-    transferTx: Optional[int]=None
-    updatedAt: datetime
-    allowedIPs: Optional[list[str]]=[]
+    updated_at:Optional[datetime] = None
 
 
+class ClientsRxTx(BaseModel):
+    transferRx:int 
+    transferTx:int 
+    id:uuid.UUID
 

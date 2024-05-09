@@ -7,6 +7,8 @@ sqlite.db
 *.iml
 out
 gen
+.log
+*.pid
 ### Python template
 # Byte-compiled / optimized / DLL files
 __pycache__/

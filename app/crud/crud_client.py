@@ -6,9 +6,7 @@ from app.models.wgserver import WGServer
 from app.schemas.client import ClientCreate,ClientUpdate
 from app.models.client import Client
 from app.core.Settings import get_settings
-import subprocess
-import logging
-import datetime
+import subprocess,os,datetime,logging,qrcode,uuid
 
 settings = get_settings()
 logging.basicConfig(level=logging.INFO)
@@ -41,15 +39,14 @@ class CRUDClient(CRUDBase[Client, ClientCreate, ClientUpdate]):
             preSharedKey = obj_in.preSharedKey,
             wgserver_id = server.id
         )
-        db_client=self.save(db,new_client)
-        # self.save_and_sync_wg_config(db=db)
-        return db_client
+        return self.save(db,new_client)
+
     def client_list_out(self,session:Session)->list[Client]:
         orm_client_list = session.query(self.model).all()
         dump = subprocess.run(["wg", "show" ,"wg0", "dump"],stdout=subprocess.PIPE).stdout.decode().strip().splitlines()
-        # if len(dump):
-            # del dump[0]
-        del dump[0]
+        if len(dump):
+            del dump[0]
+        # del dump[0]
         for line in dump :
             (
                 publicKey,
@@ -64,7 +61,7 @@ class CRUDClient(CRUDBase[Client, ClientCreate, ClientUpdate]):
             for client in orm_client_list:
                 if client.publicKey == publicKey:
                     if latestHandshakeAt != '0':
-                        client.latestHandshakeAt = datetime.fromtimestamp(int(latestHandshakeAt))
+                        client.latestHandshakeAt = datetime.datetime.fromtimestamp(int(latestHandshakeAt))
                     else:
                         client.latestHandshakeAt = None
                     client.persistentKeepalive = persistentKeepalive
@@ -75,58 +72,31 @@ class CRUDClient(CRUDBase[Client, ClientCreate, ClientUpdate]):
         return orm_client_list
     def client_qrconde_svg(self,db:Session,client_id:uuid.UUID):
         client_config = self.getClientConfiguration(db,client_id=client_id)
-        method = "fragment"
-        if method == 'basic':
-            # Simple factory, just a set of rects.
-            factory = qrcode.image.svg.SvgImage
-        elif method == 'fragment':
-            # Fragment factory (also just a set of rects)
-            factory = qrcode.image.svg.SvgFragmentImage
-        elif method == 'path':
-            # Combined path factory, fixes white space that may occur when zooming
-            factory = qrcode.image.svg.SvgPathImage
-        sqvqrcode = qrcode.make(client_config,
-                                image_factory=factory,
-                                box_size=22
-                                )
-        # qrcode.save('file.svg')
-        return sqvqrcode
+        factory = qrcode.image.svg.SvgPathImage
+        return qrcode.make(
+            client_config,
+            image_factory=factory,
+            box_size=88
+        )
+
     def getClientConfiguration(self,db:Session, client_id:uuid.UUID ) :
         client = db.get(self.model,client_id)
         server_public_key = db.query(WGServer).first().publicKey
-        priv_key = 'REPLACE_ME'
+        result = [f"{os.linesep}[Interface]"]
+        result.append(f"Address = {client.address}/24")
         if client.privateKey:
-            priv_key=client.privateKey
-        defautl_dns = ''
+            result.append(f"PrivateKey = {client.privateKey}")
         if settings.WG_DEFAULT_DNS:
-            defautl_dns = f"DNS = {settings.WG_DEFAULT_DNS}\n"
-        wg_mtu_str = ''
+            result.append(f"DNS = {settings.WG_DEFAULT_DNS}")
         if settings.WG_MTU:
-            wg_mtu_str = f"MTU = {settings.WG_MTU}\n"
-        pre_shared_key_str=''
+            result.append(f"MTU = {settings.WG_MTU}")
+        result.append(f"{os.linesep}[Peer]")
+        result.append(f"PublicKey = {server_public_key}")
         if client.preSharedKey:
-            pre_shared_key_str=f"PresharedKey = {client.preSharedKey}\n"
-        return f"""
-[Interface]
-PrivateKey = {priv_key}
-Address = {client.address}/24
-{defautl_dns}\
-{wg_mtu_str}\
-
-[Peer]
-PublicKey = {server_public_key}
-{pre_shared_key_str}
-AllowedIPs = {settings.WG_ALLOWED_IPS}
-PersistentKeepalive = {settings.WG_PERSISTENT_KEEPALIVE}
-Endpoint = {settings.WG_HOST}:{settings.WG_PORT}"""
-
-    # def get_config(self,session:Session,server:WGServerInDB) -> dict:
-    #     server_in = session.query(WGServer).first()
-    #     client_list = session.query(self.model).all()
-    #     # (Client).order_by(-Client.updated_at)
-    #     # returned_tuple = session.execute(statement)
-    #     # client_list = returned_tuple.scalars().all()
-    #     self.__save_wgserver_dot_conf(client_list)
-    #     return 
+            result.append(f"PresharedKey = {client.preSharedKey}")
+        result.append(f"AllowedIPs = {settings.WG_ALLOWED_IPS}")
+        result.append(f"PersistentKeepalive = {settings.WG_PERSISTENT_KEEPALIVE}")
+        result.append(f"Endpoint = {settings.WG_HOST}:{settings.WG_PORT}")
+        return os.linesep.join(result)
 
 crud_client = CRUDClient(Client)

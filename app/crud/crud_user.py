@@ -1,6 +1,5 @@
 
 from typing import Any, Dict, Optional, Union
-
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from app.core.security import get_password_hash, verify_password

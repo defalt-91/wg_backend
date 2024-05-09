@@ -22,11 +22,7 @@ if max_workers_str:
 	use_max_workers = int(max_workers_str)
 web_concurrency_str = settings.WEB_CONCURRENCY
 
-host = settings.BACKEND_SERVER_HOST
-port = settings.BACKEND_SERVER_PORT
-
-use_bind = f"{host}:{port}"
-use_loglevel = settings.LOG_LEVEL
+use_bind = f"{settings.BACKEND_SERVER_HOST}:{settings.BACKEND_SERVER_PORT}"
 
 cores = multiprocessing.cpu_count()
 workers_per_core = float(workers_per_core_str)
@@ -41,7 +37,6 @@ else:
 		web_concurrency = min(web_concurrency, use_max_workers)
 if settings.DEBUG:
 	web_concurrency = 1
-
 
 graceful_timeout_str = settings.GRACEFUL_TIMEOUT
 timeout_str = settings.TIMEOUT
@@ -69,6 +64,7 @@ ciphers = None
 """     Server Socket       """
 bind = use_bind
 # backlog = 2048
+# backlog = 2048
 
 """     Worker Processes    """
 workers = web_concurrency
@@ -94,7 +90,7 @@ initgroups = False
 umask = 0
 worker_tmp_dir = str(Path(__name__).resolve().parent / "logs/gunicorn/")
 
-pidfile = str(Path(__name__).resolve().parent / "logs/gunicorn/pid.pid")  # A filename to use for the PID file.
+pidfile = str(Path(__name__).resolve().parent / "logs/gunicorn/pid.txt")  # A filename to use for the PID file.
 tmp_upload_dir = None
 # secure_scheme_headers = {'X-FORWARDED-PROTOCOL': 'ssl', 'X-FORWARDED-PROTO': 'https', 'X-FORWARDED-SSL': 'on'}
 secure_scheme_headers = {'X-FORWARDED-PROTOCOL': 'ssl', 'X-FORWARDED-PROTO': 'https', 'X-FORWARDED-SSL': 'on'}
@@ -102,17 +98,23 @@ secure_scheme_headers = {'X-FORWARDED-PROTOCOL': 'ssl', 'X-FORWARDED-PROTO': 'ht
 # paste = None
 # pythonpath = None
 proxy_protocol = False
-proxy_allow_ips = "['127.0.0.1','*']"
+# proxy_allow_ips = "['127.0.0.1','*']"
 # raw_paste_global_conf = []
 strip_header_spaces = False
 
 """ logging """
-accesslog = settings.ACCESS_LOG
-disable_redirect_access_to_syslog = False
+if settings.DEBUG:
+	accesslog = '-' # Using '-' for FILE makes gunicorn log to stderr.
+	errorlog = '-'
+else:
+	accesslog = settings.ACCESS_LOG
+	errorlog = settings.ERROR_LOG
+# access_log_format = "{'remote_ip':'%(h)s','request_id':'%({X-Request-Id}i)s','response_code':'%(s)s','request_method':'%(m)s','request_path':'%(U)s','request_querystring':'%(q)s','request_timetaken':'%(D)s','response_length':'%(B)s'}"
 # access_log_format                 = %(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"
-errorlog = settings.ERROR_LOG
-loglevel = use_loglevel
-capture_output = False
+
+disable_redirect_access_to_syslog = False
+
+capture_output = True
 logger_class = 'gunicorn.glogging.Logger'
 logconfig = None
 logconfig_dict = {}
@@ -127,9 +129,10 @@ statsd_prefix = ''
 
 """ Gunicorn config variables """
 wsgi_app = "app.main:app"
-reload = True
-reload_engine = "auto"
-reload_extra_files = []
+if settings.DEBUG:
+	reload = True
+	reload_engine = "auto"
+	reload_extra_files = []
 # user = "gunicorn_user"  # must exist
 check_config = False
 print_config = False
@@ -140,9 +143,7 @@ spew = False
 
 def on_starting(server):
 	OnStarting.on_starting(server)
-	print("master")
-
-
+ 
 def on_reload(server):
 	OnReload.on_reload(server)
 
@@ -202,11 +203,12 @@ def on_exit(server):
 	OnExit.on_exit(server)
 
 
+
 # For debugging and testing
 log_data = {
-	"loglevel": loglevel,
+	"loglevel": settings.LOG_LEVEL,
 	"workers": workers,
-	# "bind"            : bind,
+	"bind"            : use_bind,
 	"graceful_timeout": graceful_timeout,
 	"timeout": timeout,
 	"keepalive": keepalive,
@@ -215,8 +217,6 @@ log_data = {
 	# Additional, non-gunicorn variables
 	"workers_per_core": workers_per_core,
 	"use_max_workers": use_max_workers,
-	"host": host,
-	"port": port,
-	"wsgi_app": wsgi_app,
+	"wsgi_app": wsgi_app
 }
 # print(json.dumps(log_data))

@@ -1,8 +1,8 @@
-"""Added client columns
+"""Added server colomns
 
-Revision ID: 4ce4773bd545
+Revision ID: cd9f58eaa4af
 Revises: 
-Create Date: 2024-05-04 03:00:13.039340
+Create Date: 2024-05-09 13:18:37.317641
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '4ce4773bd545'
+revision: str = 'cd9f58eaa4af'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -37,8 +37,11 @@ def upgrade() -> None:
     op.create_table('wgserver',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('privateKey', sa.String(length=255), nullable=False),
-    sa.Column('publicKey', sa.String(length=255), nullable=False),
+    sa.Column('publicKey', sa.String(length=255), nullable=True),
     sa.Column('address', sa.String(length=255), nullable=False),
+    sa.Column('port', sa.Integer(), nullable=False),
+    sa.Column('interface', sa.String(length=50), nullable=False),
+    sa.Column('mtu', sa.Integer(), nullable=True),
     sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.TIMESTAMP(timezone=True), nullable=True),
     sa.PrimaryKeyConstraint('id')
@@ -56,9 +59,11 @@ def upgrade() -> None:
     sa.Column('preSharedKey', sa.String(length=256), nullable=False),
     sa.Column('latestHandshakeAt', sa.TIMESTAMP(timezone=True), nullable=True),
     sa.Column('persistentKeepalive', sa.String(length=20), nullable=True),
-    sa.Column('transferRx', sa.Integer(), nullable=True),
-    sa.Column('transferTx', sa.Integer(), nullable=True),
+    sa.Column('transferRx', sa.Integer(), nullable=False),
+    sa.Column('transferTx', sa.Integer(), nullable=False),
     sa.Column('allowedIPs', sa.String(length=255), nullable=True),
+    sa.Column('friendly_name', sa.String(length=255), nullable=True),
+    sa.Column('friendly_json', sa.String(length=255), nullable=True),
     sa.Column('wgserver_id', sa.Integer(), nullable=False),
     sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.TIMESTAMP(timezone=True), nullable=True),
