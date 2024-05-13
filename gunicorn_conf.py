@@ -78,19 +78,19 @@ graceful_timeout = int(graceful_timeout_str)
 keepalive = int(keepalive_str)
 
 """     Server Mechanics    """
-preload_app = False
+preload_app = True
 sendfile = None
 reuse_port = False
 # chdir = '/app/'
 daemon = False
 # raw_env = ["FOO=1"]
-# user = "1000"
+# user = 1000
 # group = 1000
 initgroups = False
 umask = 0
 worker_tmp_dir = str(Path(__name__).resolve().parent / "logs/gunicorn/")
 
-pidfile = str(Path(__name__).resolve().parent / "logs/gunicorn/pid.txt")  # A filename to use for the PID file.
+pidfile = str(Path(__name__).resolve().parent / "logs/gunicorn/pid")  # A filename to use for the PID file.
 tmp_upload_dir = None
 # secure_scheme_headers = {'X-FORWARDED-PROTOCOL': 'ssl', 'X-FORWARDED-PROTO': 'https', 'X-FORWARDED-SSL': 'on'}
 secure_scheme_headers = {'X-FORWARDED-PROTOCOL': 'ssl', 'X-FORWARDED-PROTO': 'https', 'X-FORWARDED-SSL': 'on'}
@@ -204,19 +204,19 @@ def on_exit(server):
 
 
 
-# For debugging and testing
-log_data = {
-	"loglevel": settings.LOG_LEVEL,
-	"workers": workers,
-	"bind"            : use_bind,
-	"graceful_timeout": graceful_timeout,
-	"timeout": timeout,
-	"keepalive": keepalive,
-	"errorlog": errorlog,
-	"accesslog": accesslog,
-	# Additional, non-gunicorn variables
-	"workers_per_core": workers_per_core,
-	"use_max_workers": use_max_workers,
-	"wsgi_app": wsgi_app
-}
+# # For debugging and testing
+# log_data = {
+# 	"loglevel": settings.LOG_LEVEL,
+# 	"workers": workers,
+# 	"bind"            : use_bind,
+# 	"graceful_timeout": graceful_timeout,
+# 	"timeout": timeout,
+# 	"keepalive": keepalive,
+# 	"errorlog": errorlog,
+# 	"accesslog": accesslog,
+# 	# Additional, non-gunicorn variables
+# 	"workers_per_core": workers_per_core,
+# 	"use_max_workers": use_max_workers,
+# 	"wsgi_app": wsgi_app
+# }
 # print(json.dumps(log_data))

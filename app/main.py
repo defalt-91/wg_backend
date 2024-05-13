@@ -30,7 +30,7 @@ async def wg_quick_lifespan(app: FastAPI) -> AsyncIterator[State]:
     # for peer in server.get_config().peers:
     #     print(peer)
     #     peer_file_data.extend(server.get_config().peers[peer].as_wgconfig_snippet())
-    # with open(f"{settings.WG_CONFIG_PATH}{settings.WG_INTERFACE}-peers.conf", mode='w', encoding='utf-8') as peers_fh:
+    # with open(f"{settings.WG_CONFIGPATH}{settings.WG_INTERFACE}-peers.conf", mode='w', encoding='utf-8') as peers_fh:
     #     peers_fh.write(os.linesep.join(peer_file_data))
     subprocess.run(['wg-quick', 'down',settings.WG_INTERFACE])
 

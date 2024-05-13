@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "wg-backend"
+version = "0.1.0"
+description = "fastapi python backend for wireguard"
+authors = ["defalt91 <armansoltanian@gmail.com>"]
+readme = "README.md"
+package-mode =false
+repository = "https://github.com/defalt-91/wg_backend"
+
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.111.0"
+python-jose = "^3.3.0"
+uvicorn = "^0.29.0"
+gunicorn = "^22.0.0"
+qrcode = "^7.4.2"
+tenacity = "^8.3.0"
+alembic = "^1.13.1"
+pydantic = "^2.7.1"
+pydantic-settings = "^2.2.1"
+python-multipart = "^0.0.9"
+email-validator = "^2.1.1"
+passlib = "^1.7.4"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

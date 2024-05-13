@@ -1,11 +1,11 @@
 from functools import lru_cache
-import subprocess
+import subprocess,pathlib
 from typing import Optional
 from pydantic_settings import BaseSettings,SettingsConfigDict
 from pydantic import IPvAnyAddress,model_validator
-
+BASE_DIR = pathlib.Path().resolve()
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(env_file=BASE_DIR/".env")
     WORKERS_PER_CORE:int=1
     MAX_WORKERS :int= 1
     WEB_CONCURRENCY:int= 1
@@ -18,18 +18,17 @@ class Settings(BaseSettings):
     GRACEFUL_TIMEOUT:int=120
     TIMEOUT:int=120
     KEEP_ALIVE:int=5
-    SESSION_SECRET:str='secret'
     SECRET_KEY:str='secret'
     FIRST_SUPERUSER:str='admin'
     FIRST_SUPERUSER_PASSWORD:str='admin'
     USERS_OPEN_REGISTRATION:bool
     PROJECT_NAME :Optional[str] = 'any'
-    WG_CONFIG_PATH:Optional[str] = "/etc/wireguard/"
+    WG_CONFIGPATH:str
     # WG_PEERS_CONFIG_PATH:Optional[str] = None
     WEBUI_HOST:IPvAnyAddress = '0.0.0.0'
     WG_DEVICE:Optional[str]='eth0'
     WG_INTERFACE:Optional[str] = 'wg0'
-    WG_HOST:IPvAnyAddress = '192.168.1.55'
+    WG_HOST:IPvAnyAddress = None
     WG_PORT:Optional[int] = 51820
     WG_MTU:Optional[int] = None
     WG_PERSISTENT_KEEPALIVE:Optional[int] = 0
@@ -48,7 +47,9 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def create_post_up_str(self):
-        # self.WG_PEERS_CONFIG_PATH = f"{self.WG_CONFIG_PATH}{self.WG_INTERFACE}-peers.conf"
+        # self.WG_PEERS_CONFIG_PATH = f"{self.WG_CONFIGPATH}{self.WG_INTERFACE}-peers.conf"
+        self.WG_HOST = subprocess.run("""echo $(ip -4 addr | sed -ne 's|^.* inet \([^/]*\)/.* scope global.*$|\1|p' | awk
+ '{print $1}' | head -1)""",shell="/bin/bash",capture_output=True).stdout.decode().strip()
         cmd=["ip route |grep default |awk '{print $5}'"]
         self.WG_DEVICE=subprocess.run(args=cmd,shell="/bin/sh",capture_output=True).stdout.decode().strip()
         self.WG_SUBNET = f"{self.WG_DEFAULT_ADDRESS.replace('x','0')}/24"
@@ -75,3 +76,4 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
