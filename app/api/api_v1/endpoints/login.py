@@ -9,17 +9,23 @@ from app import crud, models, schemas
 from app.api import deps
 from app.core import security
 from app.db.session import get_session
+
 router = APIRouter()
 
 
 @router.post("/login/access-token", response_model=schemas.Token)
 def login_access_token(
     db: Session = Depends(get_session),
-    form_data: OAuth2PasswordRequestFormStrict = Depends()
+    form_data: OAuth2PasswordRequestFormStrict = Depends(),
 ) -> Any:
     """
     OAuth2 compatible token login, get an access token for future requests
     """
+    print(form_data.username)
+    print(form_data.password)
+    print(form_data.grant_type)
+    print(form_data.client_id)
+    print(form_data.client_secret)
     user = crud.user.authenticate(
         db, username=form_data.username, password=form_data.password
     )
@@ -42,5 +48,3 @@ def test_token(current_user: models.User = Depends(deps.get_current_user)) -> An
     Test access token
     """
     return current_user
-
-

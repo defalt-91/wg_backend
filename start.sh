@@ -4,7 +4,6 @@ DEFAULT_GUNICORN_CONF=/app/gunicorn_conf.py
 
 # # Run migrations
 # alembic upgrade head
-
 # alembic revision --autogenerate -m 'create db'
 # Run migrations
 alembic upgrade head

@@ -1,6 +1,10 @@
 ### Example user template template
 ### Example user template
-
+.prettierrc
+wg_config
+logs/*
+poetry.lock
+__pycache__
 # IntelliJ project files
 sqlite.db
 .idea

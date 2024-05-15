@@ -3,17 +3,24 @@ import os
 from pathlib import Path
 
 from gunicorn.config import (
-	ChildExit, NumWorkersChanged,
+	ChildExit,
+	NumWorkersChanged,
 	OnExit,
 	OnReload,
 	OnStarting,
 	PostRequest,
 	PostWorkerInit,
 	Postfork,
-	PreExec, Prefork, WhenReady, WorkerAbort, WorkerExit, WorkerInt,
+	PreExec,
+	Prefork,
+	WhenReady,
+	WorkerAbort,
+	WorkerExit,
+	WorkerInt,
 )
 
 from app.core.Settings import get_settings
+
 settings = get_settings()
 workers_per_core_str = settings.WORKERS_PER_CORE
 max_workers_str = settings.MAX_WORKERS
@@ -68,12 +75,16 @@ bind = use_bind
 
 """     Worker Processes    """
 workers = web_concurrency
-worker_class = 'uvicorn.workers.UvicornWorker'
+worker_class = "uvicorn.workers.UvicornWorker"
 worker_connections = 1000  # The maximum number of simultaneous clients.
 threads = 2  # Run each worker with the specified number of threads.
-max_requests = 0  # The maximum number of requests a worker will process before restarting
+max_requests = (
+	0  # The maximum number of requests a worker will process before restarting
+)
 max_requests_jitter = 0
-timeout = int(timeout_str)  # Workers silent for more than this many seconds are killed and restarted.
+timeout = int(
+	timeout_str
+)  # Workers silent for more than this many seconds are killed and restarted.
 graceful_timeout = int(graceful_timeout_str)
 keepalive = int(keepalive_str)
 
@@ -90,10 +101,16 @@ initgroups = False
 umask = 0
 worker_tmp_dir = str(Path(__name__).resolve().parent / "logs/gunicorn/")
 
-pidfile = str(Path(__name__).resolve().parent / "logs/gunicorn/pid")  # A filename to use for the PID file.
+pidfile = str(
+	Path(__name__).resolve().parent / "logs/gunicorn/pid"
+)  # A filename to use for the PID file.
 tmp_upload_dir = None
 # secure_scheme_headers = {'X-FORWARDED-PROTOCOL': 'ssl', 'X-FORWARDED-PROTO': 'https', 'X-FORWARDED-SSL': 'on'}
-secure_scheme_headers = {'X-FORWARDED-PROTOCOL': 'ssl', 'X-FORWARDED-PROTO': 'https', 'X-FORWARDED-SSL': 'on'}
+secure_scheme_headers = {
+	"X-FORWARDED-PROTOCOL": "ssl",
+	"X-FORWARDED-PROTO": "https",
+	"X-FORWARDED-SSL": "on",
+}
 # forwarded_allow_ips               = ['127.0.0.1']
 # paste = None
 # pythonpath = None
@@ -104,8 +121,8 @@ strip_header_spaces = False
 
 """ logging """
 if settings.DEBUG:
-	accesslog = '-' # Using '-' for FILE makes gunicorn log to stderr.
-	errorlog = '-'
+	accesslog = "-"  # Using '-' for FILE makes gunicorn log to stderr.
+	errorlog = "-"
 else:
 	accesslog = settings.ACCESS_LOG
 	errorlog = settings.ERROR_LOG
@@ -115,7 +132,7 @@ else:
 disable_redirect_access_to_syslog = False
 
 capture_output = True
-logger_class = 'gunicorn.glogging.Logger'
+logger_class = "gunicorn.glogging.Logger"
 logconfig = None
 logconfig_dict = {}
 # syslog_addr                       = unix://localhost:514
@@ -124,8 +141,8 @@ logconfig_dict = {}
 syslog = False
 enable_stdio_inheritance = False
 # statsd_host = "host:port"
-dogstatsd_tags = ''
-statsd_prefix = ''
+dogstatsd_tags = ""
+statsd_prefix = ""
 
 """ Gunicorn config variables """
 wsgi_app = "app.main:app"
@@ -143,7 +160,8 @@ spew = False
 
 def on_starting(server):
 	OnStarting.on_starting(server)
- 
+
+
 def on_reload(server):
 	OnReload.on_reload(server)
 
@@ -166,8 +184,7 @@ def post_worker_init(worker):
 
 def worker_int(worker):
 	#  for reload to work in development
-	os.system(f'kill -HUP {worker.pid}')
-	print('reloadddddd')
+	os.system(f"kill -HUP {worker.pid}")
 	WorkerInt.worker_int(worker)
 
 
@@ -201,8 +218,6 @@ def nworkers_changed(server, new_value, old_value):
 
 def on_exit(server):
 	OnExit.on_exit(server)
-
-
 
 # # For debugging and testing
 # log_data = {

@@ -1,25 +1,10 @@
 import logging
 from tenacity import after_log, before_log, retry, stop_after_attempt, wait_fixed
 from sqlalchemy.sql import text
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from app.core.Settings import get_settings
-settings=get_settings()
+from app.db.session import SessionFactory
 
-engine = create_engine(
-	url=settings.SQLALCHEMY_DATABASE_URL,
-	pool_pre_ping=True,
-	echo=True,
-	future=True,
-)
-
-SessionFactory = sessionmaker(
-	bind=engine,
-	future=True,
-	autoflush=True,
-	autocommit=False,
-	expire_on_commit=False
-)
+settings = get_settings()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -42,7 +27,6 @@ def init() -> None:
     except Exception as e:
         logger.error(e)
         raise e
-    logger.error(db.in_transaction())
 
 
 def main() -> None:

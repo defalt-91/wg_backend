@@ -1,25 +1,43 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, WebSocket, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 from app import crud, models, schemas
 from app.core import security
+from app.crud.crud_wgserver import crud_wgserver
 from app.db.session import get_session
+from app.schemas.Peer import PeerRXRT
 
-reusable_oauth2 = OAuth2PasswordBearer(
-    tokenUrl=f"{'/api/v1'}/login/access-token"
-)
 
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: list[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def send_personal_message(self, data: list[dict], websocket: WebSocket):
+        await websocket.send_json(data)
+
+    async def broadcast(self, data: list[dict]):
+        for connection in self.active_connections:
+            await connection.send_json(data)
+
+
+rx_rt_manager = ConnectionManager()
+reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{'/api/v1'}/login/access-token")
 
 
 def get_current_user(
     db: Session = Depends(get_session), token: str = Depends(reusable_oauth2)
 ) -> models.User:
     try:
-        payload = jwt.decode(
-            token, 'SECRET_KEY', algorithms=[security.ALGORITHM]
-        )
+        payload = jwt.decode(token, "SECRET_KEY", algorithms=[security.ALGORITHM])
         token_data = schemas.TokenPayload(**payload)
     except (jwt.JWTError, ValidationError):
         raise HTTPException(

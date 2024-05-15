@@ -4,34 +4,39 @@ from typing import Optional
 from app.core.Settings import get_settings
 
 settings = get_settings()
+
+
 class WGServerBase(BaseModel):
-    privateKey:Optional[str]=None
-    publicKey:Optional[str]=None
-    address:Optional[str]=None
-    port:Optional[int]=None
-    interface:Optional[str]=None
-    mtu:Optional[int]=None       
+    privateKey: Optional[str] = None
+    publicKey: Optional[str] = None
+    address: Optional[str] = None
+    port: Optional[int] = None
+    interface: Optional[str] = None
+    mtu: Optional[int] = None
+
+
 class WGServerCreate(WGServerBase):
-    privateKey:Optional[str]=None
-    publicKey:Optional[str]=None
-    address:Optional[str]=None
-    port:Optional[int]=None
-    interface:Optional[str]=None
+    privateKey: Optional[str] = None
+    publicKey: Optional[str] = None
+    address: Optional[str] = None
+    port: Optional[int] = None
+    interface: Optional[str] = None
+
     @model_validator(mode="after")
     def create_server(self):
-        privateKey = subprocess.run(['wg', 'genkey'],capture_output=True).stdout
+        privateKey = subprocess.run(["wg", "genkey"], capture_output=True).stdout
         publicKey = subprocess.run(
-            ["wg","pubkey"],
+            ["wg", "pubkey"],
             input=privateKey,
             capture_output=True,
             # executable='/bin/bash'
         ).stdout
 
-        self.address=settings.WG_DEFAULT_ADDRESS.replace('x', '1')
-        self.privateKey=privateKey.decode().strip()
-        self.publicKey=publicKey.decode().strip()
-        # address = str(settings.WG_HOST),
-        self.port = settings.WG_PORT
+        self.address = settings.WG_DEFAULT_ADDRESS.replace("x", "1")
+        self.privateKey = privateKey.decode().strip()
+        self.publicKey = publicKey.decode().strip()
+        # address = str(settings.WG_HOST_IP),
+        self.port = settings.WG_HOST_PORT
         self.interface = settings.WG_INTERFACE
         self.mtu = settings.WG_MTU
         return self
@@ -53,12 +58,16 @@ class WGServerCreate(WGServerBase):
         # self.address = address
         # return self
 
+
 class WGServerUpdate(WGServerBase):
     pass
+
+
 class WGServerInDB(WGServerBase):
-    id:int
-    privateKey:str
-    publicKey:str
-    address:str
+    id: int
+    privateKey: str
+    publicKey: str
+    address: str
+
     class Config:
         from_attributes = True
