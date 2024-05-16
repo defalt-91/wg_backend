@@ -4,7 +4,7 @@ from app.db.registry import DateMixin, NameMixin, mapper_registry
 
 
 @mapper_registry.mapped
-class WGServer(DateMixin, NameMixin):
+class WGInterface(DateMixin, NameMixin):
     id = Column(
         Integer,
         primary_key=True,
@@ -13,11 +13,11 @@ class WGServer(DateMixin, NameMixin):
         autoincrement=True,
         unique=True,
     )
-    privateKey = Column(
+    private_key = Column(
         String(255),
         nullable=False,
     )
-    publicKey = Column(
+    public_key = Column(
         String(255),
         nullable=True,
     )
@@ -28,9 +28,9 @@ class WGServer(DateMixin, NameMixin):
     port = Column(Integer, nullable=False)
     interface = Column(String(50), nullable=False)
     mtu = Column(Integer, nullable=True)
-    clients = relationship(
-        "Client",
-        back_populates="server",
+    peers = relationship(
+        "Peer",
+        back_populates="wg_interface",
         single_parent=True,
         cascade="all, delete, delete-orphan",
         # passive_deletes=True,

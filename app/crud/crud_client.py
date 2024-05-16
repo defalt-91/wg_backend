@@ -1,23 +1,21 @@
-import qrcode, uuid
 from sqlalchemy.orm import Session
 from app.crud.base import CRUDBase
-from app.models.wgserver import WGServer
-from app.schemas.client import ClientCreate, ClientUpdate
-from app.models.client import Client
+from app.schemas.Peer import PeerUpdate,PeerCreate
+from app.models.peer import Peer
 from app.core.Settings import get_settings
 import subprocess, os, datetime, logging, qrcode, uuid
 from qrcode.image.svg import SvgPathImage
-from app.crud.crud_wgserver import crud_wgserver
+from app.crud.crud_wgserver import crud_wg_interface
 
 settings = get_settings()
 logging.basicConfig(level=logging.INFO)
 
 
-class CRUDClient(CRUDBase[Client, ClientCreate, ClientUpdate]):
-    def create(self, db: Session, *, obj_in: ClientCreate, server: WGServer) -> Client:
+class CRUDClient(CRUDBase[Peer, PeerCreate, PeerUpdate]):
+    def create(self, db: Session, *, obj_in: PeerCreate) -> Peer:
         new_ip_address = None
-        clients = db.query(Client).all()
-        clients_len = db.query(Client).count()
+        clients = db.query(Peer).all()
+        clients_len = db.query(Peer).count()
         if clients_len == 0:
             new_ip_address = settings.WG_DEFAULT_ADDRESS.replace("x", str(2))
         else:
@@ -34,21 +32,21 @@ class CRUDClient(CRUDBase[Client, ClientCreate, ClientUpdate]):
 
         if not new_ip_address:
             raise Exception("Maximum number of clients reached.")
-        new_client = Client(
+        new_client = Peer(
             name=obj_in.name,
             enabled=obj_in.enabled,
             address=new_ip_address,
-            publicKey=obj_in.publicKey,
-            privateKey=obj_in.privateKey,
-            preSharedKey=obj_in.preSharedKey,
-            persistentKeepalive=25,
-            allowedIPs="0.0.0.0/0,::/0",
-            wgserver_id=server.id,
+            public_key=obj_in.public_key,
+            private_key=obj_in.private_key,
+            preshared_key=obj_in.private_key,
+            persistent_keepalive=25,
+            # allowedIPs="0.0.0.0/0,::/0",
+            interface_id=obj_in.interface_id,
         )
         return self.save(db, new_client)
 
-    def client_list_out(self, session: Session) -> list[Client]:
-        orm_client_list = session.query(self.model).all()
+    def client_list_out(self, session: Session) -> list[Peer]:
+        orm_peers = session.query(self.model).all()
         dump = (
             subprocess.run(
                 ["wg", "show", settings.WG_INTERFACE, "dump"], stdout=subprocess.PIPE
@@ -58,7 +56,7 @@ class CRUDClient(CRUDBase[Client, ClientCreate, ClientUpdate]):
             .splitlines()
         )
         if len(dump):
-            # print('-->',orm_client_list[0])
+            # print('-->',orm_peers[0])
             del dump[0]
         # del dump[0]
         for line in dump:
@@ -68,49 +66,49 @@ class CRUDClient(CRUDBase[Client, ClientCreate, ClientUpdate]):
                 endpoint,
                 address,
                 latestHandshakeAt,
-                transferRx,
-                transferTx,
-                persistentKeepalive,
+                transfer_rx,
+                transfer_tx,
+                persistent_keepalive,
             ) = line.split("\t")
-            for client in orm_client_list:
-                if client.publicKey == publicKey:
+            for peer in orm_peers:
+                if peer.public_key == public_key:
                     if latestHandshakeAt != "0":
-                        client.latestHandshakeAt = datetime.datetime.fromtimestamp(
+                        peer.latestHandshakeAt = datetime.datetime.fromtimestamp(
                             int(latestHandshakeAt)
                         )
                     else:
-                        client.latestHandshakeAt = None
-                    client.persistentKeepalive = (
-                        persistentKeepalive if persistentKeepalive != "off" else None
+                        peer.latestHandshakeAt = None
+                    peer.persistent_keepalive = (
+                        persistent_keepalive if persistent_keepalive != "off" else None
                     )
-                    client.transferRx = int(transferRx or 0)
-                    client.transferTx = int(transferTx or 0)
-                    client.address = address
-        session.add_all(orm_client_list)
-        return orm_client_list
+                    peer.transferRx = int(transfer_rx or 0)
+                    peer.transferTx = int(transfer_tx or 0)
+                    peer.address = address
+        session.add_all(orm_peers)
+        return orm_peers
 
-    def client_qrcode_svg(self, db: Session, client_id: uuid.UUID):
-        client_config = self.get_client_config(db, client_id=client_id)
+    def client_qrcode_svg(self, db: Session, peer_id: uuid.UUID):
+        client_config = self.get_client_config(db, peer_id=peer_id)
         return qrcode.make(client_config, image_factory=SvgPathImage, box_size=88)
 
-    def get_client_config(self, db: Session, client_id: uuid.UUID):
-        client = db.get(self.model, client_id)
-        server_public_key = crud_wgserver.get_server_config(session=db).publicKey
+    def get_client_config(self, db: Session, peer_id: uuid.UUID):
+        client = db.get(self.model, peer_id)
+        server_public_key = crud_wg_interface.get_server_config(session=db).public_key
         result = [f"{os.linesep}[Interface]", f"Address = {client.address}/24"]
-        if client.privateKey:
-            result.append(f"PrivateKey = {client.privateKey}")
+        if client.private_key:
+            result.append(f"PrivateKey = {client.private_key}")
         if settings.WG_DEFAULT_DNS:
             result.append(f"DNS = {settings.WG_DEFAULT_DNS}")
         if settings.WG_MTU:
             result.append(f"MTU = {settings.WG_MTU}")
         result.append(f"{os.linesep}[Peer]")
         result.append(f"PublicKey = {server_public_key}")
-        if client.preSharedKey:
-            result.append(f"PresharedKey = {client.preSharedKey}")
-        result.append(f"AllowedIPs = 0.0.0.0/0, ::/0")
+        if client.preshared_key:
+            result.append(f"PresharedKey = {client.preshared_key}")
+        result.append("AllowedIPs = 0.0.0.0/0, ::/0")
         result.append(f"PersistentKeepalive = {settings.WG_PERSISTENT_KEEPALIVE}")
         result.append(f"Endpoint = {settings.WG_HOST_IP}:{settings.WG_HOST_PORT}")
         return os.linesep.join(result)
 
 
-crud_client = CRUDClient(Client)
+crud_client = CRUDClient(Peer)

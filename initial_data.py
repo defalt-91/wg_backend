@@ -1,13 +1,13 @@
 from app.core.Settings import get_settings
-from app.crud.crud_wgserver import crud_wgserver
+from app.crud.crud_wgserver import crud_wg_interface
 from app.db.session import SessionFactory
 from sqlalchemy.orm import Session
 from app.crud import user as user_dal
 from app.core.Settings import get_settings
-from app.models.wgserver import WGServer
+from app.models.wg_interface import WGInterface
 from app.schemas import UserCreate
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
-from app.schemas.wgserver import WGServerCreate
+from app.schemas.wg_interface import WGInterfaceCreate
 import logging
 
 logging.basicConfig(level=logging.NOTSET)
@@ -34,20 +34,20 @@ def init_db(db: Session) -> None:
 
     """ load client config from db or create one"""
     try:
-        orm_wg_server = db.query(WGServer).one()
+        orm_wg_server = db.query(WGInterface).one()
         logger.info("loading existing server from database")
     except NoResultFound:
         logger.info("No server configuration in database, creating one ...")
-        orm_wg_server = WGServer(**WGServerCreate().model_dump())
+        orm_wg_server = WGInterface(**WGInterfaceCreate().model_dump())
         db.add(orm_wg_server)
         # db.flush()
         db.commit()
 
     except MultipleResultsFound:
         logger.info("there are multiple servers in database, loading last one ...")
-        orm_wg_server = crud_wgserver.get_multi(db=db).pop()
+        orm_wg_server = crud_wg_interface.get_multi(db=db).pop()
     finally:
-        result = crud_wgserver.create_write_wgserver_file(orm_server=orm_wg_server)
+        result = crud_wg_interface.create_write_wgserver_file(orm_server=orm_wg_server)
         # crud_wgserver.create_write_peers_file(orm_peers=orm_wg_server.clients)
         # crud_wgserver.sync_wg_quicks_strip()
 

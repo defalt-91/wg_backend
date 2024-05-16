@@ -5,7 +5,7 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 from app import crud, models, schemas
 from app.core import security
-from app.crud.crud_wgserver import crud_wgserver
+from app.crud.crud_wgserver import crud_wg_interface
 from app.db.session import get_session
 from app.schemas.Peer import PeerRXRT
 

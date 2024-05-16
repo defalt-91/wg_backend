@@ -1,0 +1,61 @@
+version: "3.9"
+services:
+  reverse_proxy:
+    container_name: nginx_reverse_proxy_to_gunicorn
+    image: nginx:1.25.1
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      #- ./wg_frontend/dist/wg_frontend/browser:/var/nginx/www/app
+      # - ./backend/media:/var/media
+      # - ./backend/gunicorn/cert/localhost.crt:/etc/ssl/certs/nginx-selfsigned.crt
+      # - ./backend/gunicorn/cert/localhost.decrypted.key:/etc/ssl/private/nginx-selfsigned.key
+    depends_on:
+      - wg_backend
+    ports:
+      - 80:80
+      - 443:443
+      - 51820:51820/udp
+  wg_backend:
+    image: wg_server:v1
+    build:
+      dockerfile: Dockerfile
+      context: ./wg_backend
+    container_name: python_asgi
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE #optional
+    volumes:
+      - ./wg_backend:/app
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+
+  # wireguard:
+  #   image: lscr.io/linuxserver/wireguard:latest
+  #   container_name: wireguard
+  #   cap_add:
+  #     - NET_ADMIN
+  #     - SYS_MODULE #optional
+  #   environment:
+  #     - PUID=1000
+  #     - PGID=1000
+  #     - TZ=Etc/UTC
+  #     - SERVERURL=127.0.0.1 #optional
+  #     - SERVERPORT=51870 #optional
+  #     - PEERS=1 #optional
+  #     - PEERDNS=auto #optional
+  #     - INTERNAL_SUBNET=10.8.0.0 #optional
+  #     - ALLOWEDIPS=0.0.0.0/0 #optional
+  #     # - PERSISTENTKEEPALIVE_PEERS= #optional
+  #     - LOG_CONFS=true #optional
+  #   volumes:
+  #     - /path/to/appdata/config:/config
+  #     - /lib/modules:/lib/modules #optional
+  #   ports:
+  #     - 51870:51870/udp
+  #   sysctls:
+  #     - net.ipv4.conf.all.src_valid_mark=1
+  #   restart: unless-stopped

@@ -6,39 +6,40 @@ from app.core.Settings import get_settings
 settings = get_settings()
 
 
-class WGServerBase(BaseModel):
-    privateKey: Optional[str] = None
-    publicKey: Optional[str] = None
+class WGInterface(BaseModel):
+    private_key: Optional[str] = None
+    public_key: Optional[str] = None
     address: Optional[str] = None
     port: Optional[int] = None
     interface: Optional[str] = None
     mtu: Optional[int] = None
 
 
-class WGServerCreate(WGServerBase):
-    privateKey: Optional[str] = None
-    publicKey: Optional[str] = None
+class WGInterfaceCreate(WGInterface):
+    private_key: Optional[str] = None
+    public_key: Optional[str] = None
     address: Optional[str] = None
     port: Optional[int] = None
     interface: Optional[str] = None
 
     @model_validator(mode="after")
     def create_server(self):
-        privateKey = subprocess.run(["wg", "genkey"], capture_output=True).stdout
-        publicKey = subprocess.run(
+        private_key = subprocess.run(["wg", "genkey"], capture_output=True).stdout
+        public_key = subprocess.run(
             ["wg", "pubkey"],
-            input=privateKey,
+            input=private_key,
             capture_output=True,
             # executable='/bin/bash'
         ).stdout
 
         self.address = settings.WG_DEFAULT_ADDRESS.replace("x", "1")
-        self.privateKey = privateKey.decode().strip()
-        self.publicKey = publicKey.decode().strip()
+        self.private_key = private_key.decode().strip()
+        self.public_key = public_key.decode().strip()
         # address = str(settings.WG_HOST_IP),
         self.port = settings.WG_HOST_PORT
         self.interface = settings.WG_INTERFACE
-        self.mtu = settings.WG_MTU
+        if settings.WG_MTU:
+            self.mtu = settings.WG_MTU
         return self
         # command = ["wg","pubkey"]
         # proc = subprocess.Popen(
@@ -48,25 +49,25 @@ class WGServerCreate(WGServerBase):
         #     stderr=subprocess.PIPE,
         #     # executable='/bin/bash'
         # )
-        # privateKey = subprocess.run(['wg', 'genkey'],stdout=subprocess.PIPE).stdout.decode().strip()
-        # privateToBytes = bytes(privateKey,'utf-8')
+        # private_key = subprocess.run(['wg', 'genkey'],stdout=subprocess.PIPE).stdout.decode().strip()
+        # privateToBytes = bytes(private_key,'utf-8')
         # (stdoutData, stderrData) = proc.communicate(privateToBytes)
-        # publicKey=stdoutData.decode().strip()
+        # public_key=stdoutData.decode().strip()
         # address = settings.WG_DEFAULT_ADDRESS.replace('x', '1')
-        # self.privateKey = privateKey
-        # self.publicKey = publicKey
+        # self.private_key = private_key
+        # self.public_key = public_key
         # self.address = address
         # return self
 
 
-class WGServerUpdate(WGServerBase):
+class WGInterfaceUpdate(WGInterface):
     pass
 
 
-class WGServerInDB(WGServerBase):
+class WGInterfaceInDb(WGInterface):
     id: int
-    privateKey: str
-    publicKey: str
+    private_key: str
+    public_key: str
     address: str
 
     class Config:

@@ -5,7 +5,7 @@ from sqlalchemy import pool
 
 from alembic import context
 from app.db.registry import mapper_registry  # noqa
-from app.models.client import Client  # noqa
+from app.models.peer import Peer  # noqa
 from app.models.user import User  # noqa
 from app.core.Settings import get_settings
 
