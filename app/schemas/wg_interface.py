@@ -1,26 +1,22 @@
 import subprocess
 from pydantic import BaseModel, model_validator
-from typing import Optional
 from app.core.Settings import get_settings
+from app.schemas.Peer import InterfacePeer
 
 settings = get_settings()
 
 
 class WGInterface(BaseModel):
-    private_key: Optional[str] = None
-    public_key: Optional[str] = None
-    address: Optional[str] = None
-    port: Optional[int] = None
-    interface: Optional[str] = None
-    mtu: Optional[int] = None
+    interface: str | None = None
+    address: str | None = None
+    port: int | None = None
+    mtu: int | None = None
+    private_key: str | None = None
+    public_key: str | None = None
 
 
 class WGInterfaceCreate(WGInterface):
-    private_key: Optional[str] = None
-    public_key: Optional[str] = None
-    address: Optional[str] = None
-    port: Optional[int] = None
-    interface: Optional[str] = None
+    interface: str
 
     @model_validator(mode="after")
     def create_server(self):
@@ -32,12 +28,14 @@ class WGInterfaceCreate(WGInterface):
             # executable='/bin/bash'
         ).stdout
 
-        self.address = settings.WG_DEFAULT_ADDRESS.replace("x", "1")
+        if not self.address:
+            self.address = settings.WG_DEFAULT_ADDRESS.replace("x", "1")
         self.private_key = private_key.decode().strip()
         self.public_key = public_key.decode().strip()
         # address = str(settings.WG_HOST_IP),
         self.port = settings.WG_HOST_PORT
-        self.interface = settings.WG_INTERFACE
+        if not self.interface:
+            self.interface = settings.WG_INTERFACE
         if settings.WG_MTU:
             self.mtu = settings.WG_MTU
         return self
@@ -72,3 +70,13 @@ class WGInterfaceInDb(WGInterface):
 
     class Config:
         from_attributes = True
+
+
+class WGInterfaceConfigOut(WGInterface):
+    listen_port: int
+    fwmark: int | None = None
+    interface_index: int
+    interface: str
+    private_key: str
+    public_key: str
+    peers: list[InterfacePeer]

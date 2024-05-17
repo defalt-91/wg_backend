@@ -1,4 +1,3 @@
-from app.core.Settings import get_settings
 from app.crud.crud_wgserver import crud_wg_interface
 from app.db.session import SessionFactory
 from sqlalchemy.orm import Session
@@ -30,30 +29,34 @@ def init_db(db: Session) -> None:
             is_superuser=True,
         )
         super_user = user_dal.create(db, obj_in=user_in)
-        logger.info(f"newly created superuser is: {super_user.username}")
-
-    """ load client config from db or create one"""
+        logger.debug(f"newly created superuser is: {super_user.username}")
+        logger.info("Superuser created")
+    else:
+        logger.debug("superuser already exists.")
+    """ load peer config from db or create one"""
+    orm_wg_server = None
     try:
-        orm_wg_server = db.query(WGInterface).one()
-        logger.info("loading existing server from database")
+        orm_wg_server = crud_wg_interface.get_one(session=db)
+        logger.debug("loading existing interface from database.")
     except NoResultFound:
-        logger.info("No server configuration in database, creating one ...")
-        orm_wg_server = WGInterface(**WGInterfaceCreate().model_dump())
+        logger.info("No interface configuration found in database, creating one ...")
+        obj_in = WGInterfaceCreate(interface=settings.WG_INTERFACE).model_dump()
+        orm_wg_server = crud_wg_interface.create(db, obj_in=obj_in)
         db.add(orm_wg_server)
         # db.flush()
         db.commit()
-
+        logger.info("Wireguard db interface created.")
     except MultipleResultsFound:
-        logger.info("there are multiple servers in database, loading last one ...")
+        logger.debug("there are multiple interfaces in database, loading last one ...")
         orm_wg_server = crud_wg_interface.get_multi(db=db).pop()
     finally:
+        logger.debug(f"writing interface config to {settings.wgserver_file_path}")
         result = crud_wg_interface.create_write_wgserver_file(orm_server=orm_wg_server)
-        # crud_wgserver.create_write_peers_file(orm_peers=orm_wg_server.clients)
-        # crud_wgserver.sync_wg_quicks_strip()
+        logger.debug(f"writing down wireguard db interface with id={orm_wg_server.id} completed.")
 
 
 if __name__ == "__main__":
-    logger.info("Creating initial data")
+    logger.info("Creating or loading initial superuser and interface from environments")
     with SessionFactory() as session:
         init_db(session)
-    logger.info("Initial data created")
+    logger.info("Initial superuser and wireguard interface config are present in db.")

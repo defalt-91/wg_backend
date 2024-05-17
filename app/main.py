@@ -5,7 +5,7 @@ from fastapi.datastructures import State
 from starlette.middleware.cors import CORSMiddleware
 from app.api.api_v1.api import api_router
 from app.crud.crud_wgserver import crud_wg_interface
-from .db.session import SessionFactory, engine
+from app.db.session import SessionFactory, engine
 from app.db.registry import mapper_registry
 from app.core.Settings import get_settings
 

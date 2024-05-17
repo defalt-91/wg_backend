@@ -8,6 +8,10 @@ BASE_DIR = pathlib.Path().resolve()
 
 
 class Settings(BaseSettings):
+    SECRET_KEY: str = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
+    DEBUG: bool = True
+    WG_SUBNET: Optional[str] = None
+    ALGORITHM: Optional[str] = "HS256"
     model_config = SettingsConfigDict(env_file=BASE_DIR / ".env")
     WORKERS_PER_CORE: int = 1
     MAX_WORKERS: int = 1
@@ -21,8 +25,7 @@ class Settings(BaseSettings):
     GRACEFUL_TIMEOUT: int = 120
     TIMEOUT: int = 120
     KEEP_ALIVE: int = 5
-    SECRET_KEY: str = "secret"
-    FIRST_SUPERUSER: str 
+    FIRST_SUPERUSER: str
     FIRST_SUPERUSER_PASSWORD: str
     USERS_OPEN_REGISTRATION: bool
     PROJECT_NAME: Optional[str] = "app-"
@@ -42,9 +45,6 @@ class Settings(BaseSettings):
     LANG: Optional[str] = "en"
     UI_TRAFFIC_STATS: bool = True
     SQLALCHEMY_DATABASE_URL: str = "sqlite:///./sqlite.db"
-    DEBUG: bool = True
-    WG_SUBNET: Optional[str] = None
-
     """     
     For better exprience
     environments that need be Change    
@@ -55,7 +55,7 @@ class Settings(BaseSettings):
     def create_post_up_str(self):
         # self.WG_PEERS_CONFIG_PATH = f"{self.WG_CONFIG_DIR_PATH}/{self.WG_INTERFACE}-peers.conf"
         self.WG_HOST_IP, self.WG_DEVICE = self.find_ip_and_interface()
-        self.WG_SUBNET = f"{self.WG_DEFAULT_ADDRESS.replace('x','0')}/24"
+        self.WG_SUBNET = f"{self.WG_DEFAULT_ADDRESS.replace('x', '0')}/24"
         if not self.WG_POST_UP:
             WG_POST_UP_STR = [
                 f"iptables -t nat -A POSTROUTING -s {self.WG_DEFAULT_ADDRESS.replace('x', '0')}/24 -o {self.WG_DEVICE} -j MASQUERADE;",
@@ -85,7 +85,7 @@ class Settings(BaseSettings):
         with open(f"{self.WG_CONFIG_DIR_PATH}/ip_addr_configs.json", "w") as f:
             f.write(json.dumps(json_conf))
         for device in json_conf:
-            if device["group"] == "default" and device["addr_info"][0]["scope"] == "global":
+            if device["group"]=="default" and device["addr_info"][0]["scope"]=="global":
                 local_ip = device["addr_info"][0]["local"]
                 interface = device["ifname"]
                 break

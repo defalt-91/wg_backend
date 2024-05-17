@@ -1,35 +1,35 @@
-from typing import Any, List
+from typing import Any, List, Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
-from app import crud, models, schemas
+from app import crud, models
+from app.api.deps import get_current_active_user
+from app.schemas.user import UserOut, UserCreate, UserUpdate
 from app.api import deps
 from app.db.session import get_session
 
 router = APIRouter()
 
 
-@router.get("/", response_model=List[schemas.User])
-def read_users(
-    db: Session = Depends(get_session),
-    skip: int = 0,
-    limit: int = 100,
-    current_user: models.User = Depends(deps.get_current_active_user),
-) -> Any:
+@router.get("/", response_model=List[UserOut], dependencies=[Depends(deps.get_current_active_superuser)])
+async def read_users(
+        db: Session = Depends(get_session),
+        skip: int = 0,
+        limit: int = 100,
+        current_user: models.User = Depends(deps.get_current_active_user),
+) -> list[UserOut | None]:
     """
     Retrieve users.
     """
-    users = crud.user.get_multi(db, skip=skip, limit=limit)
-    return users
+    return crud.user.get_multi(db, skip=skip, limit=limit)
 
 
-@router.post("/", response_model=schemas.User)
-def create_user(
-    *,
-    db: Session = Depends(get_session),
-    user_in: schemas.UserCreate,
-    current_user: models.User = Depends(deps.get_current_active_user),
+@router.post("/", response_model=UserOut, dependencies=[Depends(get_current_active_user)])
+async def create_user(
+        *,
+        db: Session = Depends(get_session),
+        user_in: UserCreate,
 ) -> Any:
     """
     Create new user.
@@ -44,17 +44,17 @@ def create_user(
     return user
 
 
-@router.put("/me", response_model=schemas.User)
-def update_user_me(
-    *,
-    db: Session = Depends(get_session),
-    password: str = Body(None),
-    username: str = Body(None),
-    current_user: models.User = Depends(deps.get_current_active_user),
+@router.put("/me", response_model=UserOut)
+async def update_user_me(
+        *,
+        db: Session = Depends(get_session),
+        password: str = Body(None),
+        username: str = Body(None),
+        current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """Update own user."""
     current_user_data = jsonable_encoder(current_user)
-    user_in = schemas.UserUpdate(**current_user_data)
+    user_in = UserUpdate(**current_user_data)
     if password is not None:
         user_in.password = password
     if username is not None:
@@ -63,10 +63,10 @@ def update_user_me(
     return user
 
 
-@router.get("/me", response_model=schemas.User)
-def read_user_me(
-    db: Session = Depends(get_session),
-    current_user: models.User = Depends(deps.get_current_active_user),
+@router.get("/me", response_model=UserOut)
+async def read_user_me(
+        db: Session = Depends(get_session),
+        current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
     Get current user.
@@ -74,12 +74,12 @@ def read_user_me(
     return current_user
 
 
-@router.post("/open", response_model=schemas.User)
-def create_user_open(
-    *,
-    db: Session = Depends(get_session),
-    password: str = Body(...),
-    username: str = Body(...),
+@router.post("/open", response_model=UserOut)
+async def create_user_open(
+        *,
+        db: Session = Depends(get_session),
+        password: str = Body(...),
+        username: str = Body(...),
 ) -> Any:
     """
     Create new user without the need to be logged in.
@@ -90,22 +90,22 @@ def create_user_open(
             status_code=400,
             detail="The user with this username already exists in the system",
         )
-    user_in = schemas.UserCreate(password=password, username=username)
+    user_in = UserCreate(password=password, username=username)
     user = crud.user.create(db, obj_in=user_in)
     return user
 
 
-@router.get("/{user_id}", response_model=schemas.User)
-def read_user_by_id(
-    user_id: int,
-    current_user: models.User = Depends(deps.get_current_active_user),
-    db: Session = Depends(get_session),
+@router.get("/{user_id}", response_model=UserOut)
+async def read_user_by_id(
+        user_id: int,
+        current_user: models.User = Depends(deps.get_current_active_user),
+        db: Session = Depends(get_session),
 ) -> Any:
     """
     Get a specific user by id.
     """
-    user = crud.user.get(db, id=user_id)
-    if user == current_user:
+    user = crud.user.get(db, item_id=user_id)
+    if user==current_user:
         return user
     if not crud.user.is_superuser(current_user):
         raise HTTPException(
@@ -114,16 +114,16 @@ def read_user_by_id(
     return user
 
 
-@router.put("/{user_id}", response_model=schemas.User)
-def update_user(
-    *,
-    db: Session = Depends(get_session),
-    user_id: int,
-    user_in: schemas.UserUpdate,
-    current_user: models.User = Depends(deps.get_current_active_user),
+@router.put("/{user_id}", response_model=UserOut, dependencies=[Depends(deps.get_current_active_user)])
+async def update_user(
+        *,
+        db: Session = Depends(get_session),
+        user_id: int,
+        user_in: UserUpdate,
+        # current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """Update a user."""
-    user = crud.user.get(db, id=user_id)
+    user = crud.user.get(db, item_id=user_id)
     if not user:
         raise HTTPException(
             status_code=404,

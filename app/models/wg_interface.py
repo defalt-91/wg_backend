@@ -5,26 +5,9 @@ from app.db.registry import DateMixin, NameMixin, mapper_registry
 
 @mapper_registry.mapped
 class WGInterface(DateMixin, NameMixin):
-    id = Column(
-        Integer,
-        primary_key=True,
-        index=True,
-        nullable=False,
-        autoincrement=True,
-        unique=True,
-    )
-    private_key = Column(
-        String(255),
-        nullable=False,
-    )
-    public_key = Column(
-        String(255),
-        nullable=True,
-    )
-    address = Column(
-        String(255),
-        nullable=False,
-    )
+    private_key = Column(String(255), nullable=False)
+    public_key = Column(String(255), nullable=True)
+    address = Column(String(255), nullable=False)
     port = Column(Integer, nullable=False)
     interface = Column(String(50), nullable=False)
     mtu = Column(Integer, nullable=True)

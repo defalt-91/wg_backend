@@ -1,8 +1,8 @@
-"""remove allowedIps columns from client in db
+"""test
 
-Revision ID: e16249e7b301
-Revises: 6452a81990a1
-Create Date: 2024-05-15 19:15:42.789690+03:30
+Revision ID: 53fcd14befb7
+Revises: 570529568a71
+Create Date: 2024-05-17 02:51:41.350318+03:30
 
 """
 from typing import Sequence, Union
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'e16249e7b301'
-down_revision: Union[str, None] = '6452a81990a1'
+revision: str = '53fcd14befb7'
+down_revision: Union[str, None] = '570529568a71'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

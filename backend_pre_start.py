@@ -1,16 +1,23 @@
-import logging
+import logging, pathlib
 from tenacity import after_log, before_log, retry, stop_after_attempt, wait_fixed
 from sqlalchemy.sql import text
-from app.core.Settings import get_settings
 from app.db.session import SessionFactory
+from alembic import command, config
 
-settings = get_settings()
+# from alembic import migration,op,command,env,config,util,operations,runtime,script,ddl,Operations,autogenerate
 
+BASE_DIR = pathlib.Path(__file__).parent.absolute()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 max_tries = 60 * 5  # 5 minutes
 wait_seconds = 1
+try:
+    alembic_config = config.Config(BASE_DIR / 'alembic.ini')
+    command.upgrade(config=alembic_config, revision='head')
+except Exception as err:
+    logger.critical('Alembic upgrade error: {}'.format(err))
+logger.debug("Alembic upgraded database to last revision.")
 
 
 @retry(

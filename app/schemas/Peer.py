@@ -1,29 +1,28 @@
-import uuid, datetime, subprocess
+import datetime
+import subprocess
+import uuid
+
 from pydantic import BaseModel, model_validator
-from typing import Optional
-# from app.core.Settings import get_settings
-#
-# settings = get_settings()
 
 
 class PeerBase(BaseModel):
-    mtu: Optional[int] = None
-    persistent_keepalive: Optional[int] = None
-    rx_bytes: Optional[int] = 0
-    tx_bytes: Optional[int] = 0
-    last_handshake_time: Optional[datetime.datetime] = None
-    fwmark: Optional[int] = None
-    enabled: Optional[bool] = None
-    endpoint_addr: Optional[str] = None
-    endpoint_port: Optional[int] = None
-    address: Optional[str] = None
-    allowed_ips: Optional[list[str]] = None
-    name: Optional[str] = None
-    downloadable_config: Optional[bool] = None
-    private_key: Optional[str] = None
-    public_key: Optional[str] = None
-    preshared_key: Optional[str] = None
-    
+    mtu: int | None = None
+    persistent_keepalive: int | None = None
+    rx_bytes: int | None = 0
+    tx_bytes: int | None = 0
+    last_handshake_at: datetime.datetime | None = None
+    fwmark: int | None = None
+    enabled: bool | None = None
+    endpoint_addr: str | None = None
+    endpoint_port: int | None = None
+    address: str | None = None
+    allowed_ips: list[str] | None = None
+    name: str | None = None
+    downloadable_config: bool | None = None
+    private_key: str | None = None
+    public_key: str | None = None
+    preshared_key: str | None = None
+
     @model_validator(mode="after")
     def check_transferRx(self):
         if self.rx_bytes is None or not isinstance(self.rx_bytes, int):
@@ -31,42 +30,17 @@ class PeerBase(BaseModel):
         if self.tx_bytes is None or not isinstance(self.tx_bytes, int):
             self.tx_bytes = 0
         return self
-    
-    class Config:
-        from_attributes = True
-    
-    
+
+
 class InterfacePeer(PeerBase):
     public_key: str
     preshared_key: str
 
 
-class PeerInDbBase(PeerBase):
-    id: uuid.UUID
-    name: str
-    interface_id: int
-    private_key: str
-    public_key: str
-    preshared_key: Optional[str] = None
-    created_at: datetime.datetime
-    updated_at: Optional[datetime.datetime] = None
-    enable: Optional[bool] = True
-    protocol_version: Optional[str] = None
-
-        
-class PeerOut(PeerInDbBase):
-    downloadable_config: bool = False
-    allowed_ips: Optional[list[str]] = ["0.0.0.0/0, ::/0"]
-    persistent_keepalive: Optional[int] = None
-    rx_bytes: Optional[int] = 0
-    tx_bytes: Optional[int] = 0
-    last_handshake_time: Optional[datetime.datetime] = None
-
-    
 class PeerUpdate(PeerBase):
-    name: Optional[str] = None
-    enabled: Optional[bool] = None
-    
+    name: str | None = None
+    enabled: bool | None = None
+
     @model_validator(mode="after")
     def check_downloadable_config(self):
         if self.private_key:
@@ -76,11 +50,11 @@ class PeerUpdate(PeerBase):
 
 class PeerCreate(PeerBase):
     name: str
-    interface_id:Optional[int] = None
-    
+    interface_id: int | None = None
+
     @model_validator(mode="after")
     def verify_fields(self):
-        self.enabled = True
+        # self.enabled = True
         command = ["wg", "pubkey"]
         self.private_key = (
             subprocess.run(["wg", "genkey"], stdout=subprocess.PIPE)
@@ -108,17 +82,7 @@ class PeerCreate(PeerBase):
             .strip()
         )
         return self
-        
-        
-class InterfaceConfigOut(PeerBase):
-    listen_port: int
-    fwmark: Optional[int] = None
-    interface_index: int
-    interface: str
-    private_key: str
-    public_key: str
-    peers: list[InterfacePeer]
-    
+
 
 class PeerRXRT(BaseModel):
     transfer_rx: int
@@ -126,5 +90,31 @@ class PeerRXRT(BaseModel):
     public_key: str
 
 
-    
-    
+class PeerInDbBase(BaseModel):
+    id: uuid.UUID
+    name: str
+    enable: bool | None = None
+    interface_id: int
+    private_key: str
+    public_key: str
+    preshared_key: str | None = None
+    created_at: datetime.datetime
+    updated_at: datetime.datetime | None = None
+    address: str | None = None
+    persistent_keepalive: int | None = None
+    transfer_rx: int | None = None
+    transfer_tx: int | None = None
+    last_handshake_at: datetime.datetime | None = None
+    friendly_name: str | None = None
+    friendly_json: dict | None = None
+    # wg_interface: InterfacePeer | None = None
+
+    class Config:
+        # orm_mode = True
+        from_attributes = True
+
+
+class PeerOut(PeerInDbBase):
+    downloadable_config: bool = False
+    allowed_ips: list[str] | None = ["0.0.0.0/0, ::0"]
+

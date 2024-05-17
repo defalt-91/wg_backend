@@ -1,7 +1,7 @@
 from fastapi.routing import APIRoute
 from typing import Callable
 from fastapi import Request, Response, APIRouter
-from app.api.api_v1.endpoints import login, users, client
+from app.api.api_v1.endpoints import login, users, peer, wg_interface
 import time
 
 
@@ -37,9 +37,16 @@ api_router.include_router(
     deprecated=False,
 )
 api_router.include_router(
-    client.router,
+    peer.router,
     prefix="",
-    tags=["clients"],
+    tags=["Peers"],
+    include_in_schema=True,
+    deprecated=False,
+)
+api_router.include_router(
+    wg_interface.router,
+    prefix="/wgif",
+    tags=["WG_Interface", "in development"],
     include_in_schema=True,
     deprecated=False,
 )

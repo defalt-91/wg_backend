@@ -45,22 +45,21 @@ class DateMixin:
 
 @declarative_mixin
 class NameMixin:
-    # id = Column(
-    # 	Integer,
-    # 	primary_key=True,
-    # 	index=True,
-    # 	nullable=False,
-    # 	autoincrement=True,
-    # 	unique=True,
-    # )
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True,
+        nullable=False,
+        autoincrement=True,
+        unique=True,
+    )
 
     @declared_attr
     def __tablename__(cls):
         return cls.__name__.lower()
 
     def __repr__(self):
-        # return f"<{self.__class__.__name__}, id={self.id}>"
-        return f"<{self.__class__.__name__}>"
+        return f"<{self.__class__.__name__}, id={self.id}>"
 
     def __str__(self):
         return self.__repr__()

@@ -1,14 +1,13 @@
-from typing import Optional
-
 from pydantic import BaseModel
 import pydantic.class_validators as py_validators
+from pydantic import model_validator
 
 
 # Shared properties
 class UserBase(BaseModel):
-    is_active: Optional[bool] = True
+    is_active: bool | None = True
     is_superuser: bool = False
-    username: Optional[str] = None
+    username: str | None = None
 
     @py_validators.validator("username")
     def username_check(cls, v, values):
@@ -21,15 +20,24 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     username: str
     password: str
+    scope: str | None = None
+
+    @model_validator(mode="after")
+    def username_validator(self):
+        if not self.scope:
+            self.scope = "me"
+        return self
 
 
-# Properties to receive via API on update
 class UserUpdate(UserBase):
-    password: Optional[str] = None
+    password: str | None = None
+    client_id: str | None = None
+    client_secret: str | None = None
+    scope: str | None = None
 
 
 class UserInDBBase(UserBase):
-    id: Optional[int] = None
+    id: int | None = None
 
     class Config:
         # orm_mode = True
@@ -37,10 +45,13 @@ class UserInDBBase(UserBase):
 
 
 # Additional properties to return via API
-class User(UserInDBBase):
+class UserOut(UserInDBBase):
     pass
 
 
 # Additional properties stored in DB
 class UserInDB(UserInDBBase):
     hashed_password: str
+    scope: str
+    client_id: str | None = None
+    client_secret: str | None = None

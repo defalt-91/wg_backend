@@ -1,7 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from typing import Generator, AsyncGenerator
-from fastapi import Request
+from typing import Generator
 from app.core.Settings import get_settings
 
 settings = get_settings()
@@ -17,6 +16,7 @@ SessionFactory = sessionmaker(
     bind=engine, future=True, autoflush=True, autocommit=False, expire_on_commit=False
 )
 
+
 # Dependency
 # def get_db(request: Request):
 #     return request.state.db
@@ -26,7 +26,7 @@ def get_session() -> Generator:
     session = SessionFactory()
     try:
         yield session
-    except:
+    except Exception:
         session.rollback()
         raise
     else:

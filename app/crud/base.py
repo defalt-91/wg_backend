@@ -3,7 +3,7 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 import logging
-from app.core import errors
+from app.api import exceptions
 
 ModelType = TypeVar("ModelType")
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
@@ -34,33 +34,33 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         return db_obj
 
     def get_object_or_404(
-        self, session: Session, instance_id: int
+            self, session: Session, instance_id: int
     ) -> Optional[ModelType]:
         orm_object = session.get(self.model, instance_id)
         if not orm_object:
-            raise errors.not_found_error()
+            raise exceptions.not_found_error()
         return orm_object
 
-    def get(self, db: Session, id: Any) -> Optional[ModelType]:
-        return db.query(self.model).filter(self.model.id == id).first()
+    def get(self, db: Session, item_id: Any) -> Optional[ModelType]:
+        return db.query(self.model).filter(self.model.id == item_id).first()
 
     def get_multi(
-        self, db: Session, *, skip: int = 0, limit: int = 100
+            self, db: Session, *, skip: int = 0, limit: int = 100
     ) -> Optional[List[ModelType]]:
         object_list = db.query(self.model).offset(skip).limit(limit).all()
         if not object_list:
-            raise errors.client_not_found()
+            raise exceptions.client_not_found()
         return object_list
 
     def update(
-        self,
-        db: Session,
-        *,
-        obj_in: Union[UpdateSchemaType, Dict[str, Any]],
-        db_obj: ModelType,
+            self,
+            db: Session,
+            *,
+            obj_in: Union[UpdateSchemaType, Dict[str, Any]],
+            db_obj: ModelType,
     ) -> Optional[ModelType]:
         if not db_obj:
-            raise errors.not_found_error()
+            raise exceptions.not_found_error()
         if isinstance(obj_in, dict):
             update_data = obj_in
         else:
@@ -75,10 +75,10 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         db.refresh(db_obj)
         return db_obj
 
-    def remove(self, db: Session, *, id: int) -> ModelType:
-        obj = db.query(self.model).get(id)
+    def remove(self, db: Session, *, item_id: int) -> ModelType:
+        obj = db.query(self.model).get(item_id)
         if not obj:
-            raise errors.not_found_error()
+            raise exceptions.not_found_error()
         db.delete(obj)
         # db.flush()
         return obj
