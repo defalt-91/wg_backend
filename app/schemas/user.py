@@ -1,5 +1,5 @@
-from pydantic import BaseModel
 import pydantic.class_validators as py_validators
+from pydantic import BaseModel
 from pydantic import model_validator
 
 

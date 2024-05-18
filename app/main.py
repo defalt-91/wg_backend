@@ -3,7 +3,7 @@ from typing import AsyncIterator
 from fastapi import FastAPI
 from fastapi.datastructures import State
 from starlette.middleware.cors import CORSMiddleware
-from app.api.api_v1.api import api_router
+from app.api.api_v1.api import v1_api_router
 from app.crud.crud_wgserver import crud_wg_interface
 from app.db.session import SessionFactory, engine
 from app.db.registry import mapper_registry
@@ -46,7 +46,6 @@ async def wg_quick_lifespan(application: FastAPI) -> AsyncIterator[State]:
     subprocess.run(["wg-quick", "down", settings.WG_INTERFACE])
 
 
-mapper_registry.metadata.create_all(bind=engine)
 app = FastAPI(
     debug=settings.DEBUG,
     title=settings.PROJECT_NAME,
@@ -65,11 +64,11 @@ app.add_middleware(
     allow_origins=settings.BACKEND_CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["X-Response-Time","*"],
 )
 
 
-app.include_router(api_router)
+app.include_router(v1_api_router)
 
 # app.route()
 # @app.middleware("http")

@@ -2,48 +2,44 @@ import re
 import uuid
 from io import StringIO
 
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter
+from fastapi import (
+    Depends
+)
 from fastapi.responses import StreamingResponse, Response
 from sqlalchemy.orm import Session
 
-from app.api.deps import ConnectionManager
-from app.api.deps import get_current_user as get_current_active_superuser, get_session
+from app.api.deps import get_current_active_superuser
 from app.crud.crud_peer import crud_peer
 from app.crud.crud_wgserver import crud_wg_interface
+from app.db.session import get_session
 from app.models.peer import Peer
-from app.schemas.Peer import PeerOut, PeerUpdate, PeerCreate
+from app.schemas.Peer import PeerOut, PeerUpdate, PeerCreate, PeerRXRT
 
 router = APIRouter()
-rx_rt_manager = ConnectionManager()
-
-
-@router.websocket(
-    "/ws/rxrt/",
-    # dependencies=[Depends(get_current_active_superuser)]
-)
-async def websocket_rx_rt(websocket: WebSocket):
-    await rx_rt_manager.connect(websocket)
-    try:
-        while True:
-            data = await crud_wg_interface.get_rxrt()
-            # msg = await websocket.receive()
-            # await rx_rt_manager.broadcast(data)
-            await rx_rt_manager.send_personal_message(data=data, websocket=websocket)
-    except WebSocketDisconnect:
-        rx_rt_manager.disconnect(websocket)
-
-
-# await rx_rt_manager.broadcast(f"Peer #{'user_id'} left the chat")
 
 
 @router.get(
-    "/peers/",
+    "/peers/rxtx",
+    response_model=list[PeerRXRT],
+    response_model_exclude={"preshared_key"},
+    response_model_exclude_none=True,
+    response_model_exclude_unset=True,
+    dependencies=[Depends(get_current_active_superuser)]
+)
+async def get_peers_rxtx() -> list[PeerRXRT]:
+    return crud_wg_interface.get_only_peers()
+
+
+@router.get(
+    "/peers",
     dependencies=[Depends(get_current_active_superuser)],
     response_model=list[PeerOut],
     response_model_exclude={"public_key"},
 )
 async def peer_list(db: Session = Depends(get_session)):
-    return crud_wg_interface.get_config(db)
+    peers, if_config = crud_wg_interface.get_config(db)
+    return peers
 
 
 @router.post(
@@ -53,9 +49,7 @@ async def peer_list(db: Session = Depends(get_session)):
     response_model_exclude_none=True,
     response_model_exclude_unset=True,
     response_model_exclude={
-        "private_key",
         "public_key",
-        "preshared_key",
         "transfer_rx",
         "transfer_tx",
         "last_handshake_at"
@@ -83,12 +77,11 @@ async def update_peer(
         db: Session = Depends(get_session),
 ):
     db_peer = db.get(Peer, peer_id)
-    print(peer.enabled)
     updated_peer_dict = peer.model_dump(exclude_none=True, exclude_unset=True)
     # updated_peer_dict['allowedIPs'] = ",".join(peer.allowedIPs)
     updated_peer = crud_peer.update(db, db_obj=db_peer, obj_in=updated_peer_dict)
     if not peer.enabled:
-        crud_wg_interface.remove_peer(peer.public_key)
+        crud_wg_interface.remove_peer(db_peer.public_key)
     else:
         crud_wg_interface.update_peer(updated_peer)
     return updated_peer
@@ -138,4 +131,3 @@ async def peer_configuration(
         "Content-Length": str(len(f.getvalue())),
     }
     return StreamingResponse(f, headers=headers)
-

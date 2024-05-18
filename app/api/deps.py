@@ -13,7 +13,7 @@ settings = get_settings()
 
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl=f"/api/v1/login/access-token",
-    scopes={"me": "Read information about the current user.", "items": "Read items."},
+    scopes={"me": "Read information about the current user.", "peers": "Read peers."},
 )
 
 
@@ -68,22 +68,3 @@ async def get_current_active_superuser(
     if not crud.user.is_superuser(current_user):
         raise HTTPException(status_code=400, detail="The user doesn't have enough privileges")
     return current_user
-
-
-class ConnectionManager:
-    def __init__(self):
-        self.active_connections: list[WebSocket] = []
-
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections.append(websocket)
-
-    def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
-
-    async def send_personal_message(self, data: list[dict], websocket: WebSocket):
-        await websocket.send_json(data)
-
-    async def broadcast(self, data: list[dict]):
-        for connection in self.active_connections:
-            await connection.send_json(data)

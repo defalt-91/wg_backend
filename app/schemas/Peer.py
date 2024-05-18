@@ -32,11 +32,6 @@ class PeerBase(BaseModel):
         return self
 
 
-class InterfacePeer(PeerBase):
-    public_key: str
-    preshared_key: str
-
-
 class PeerUpdate(PeerBase):
     name: str | None = None
     enabled: bool | None = None
@@ -78,12 +73,6 @@ class PeerCreate(PeerBase):
         return self
 
 
-class PeerRXRT(BaseModel):
-    transfer_rx: int
-    transfer_tx: int
-    public_key: str
-
-
 class PeerInDbBase(BaseModel):
     id: uuid.UUID
     name: str
@@ -101,6 +90,7 @@ class PeerInDbBase(BaseModel):
     last_handshake_at: datetime.datetime | None = None
     friendly_name: str | None = None
     friendly_json: dict | None = None
+
     # wg_interface: InterfacePeer | None = None
 
     class Config:
@@ -131,3 +121,10 @@ class PeerOut(BaseModel):
         if self.public_key:
             self.downloadable_config = True
         return self
+
+
+class PeerRXRT(BaseModel):
+    public_key: str | None = None
+    rx_bytes: int
+    tx_bytes: int
+    last_handshake_at: datetime.datetime

@@ -25,5 +25,4 @@ class Peer(DateMixin, NameMixin):
     wg_interface = relationship(
         "WGInterface",
         back_populates="peers",
-        # order_by="desc(Token.created_at)"
     )

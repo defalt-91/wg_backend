@@ -51,7 +51,7 @@ def init_db(db: Session) -> None:
         orm_wg_server = crud_wg_interface.get_multi(db=db).pop()
     finally:
         logger.debug(f"writing interface config to {settings.wgserver_file_path}")
-        result = crud_wg_interface.create_write_wgserver_file(orm_server=orm_wg_server)
+        result = crud_wg_interface.create_wg_quick_config_file(orm_server=orm_wg_server)
         logger.debug(f"writing down wireguard db interface with id={orm_wg_server.id} completed.")
 
 

@@ -1,11 +1,18 @@
-from sqlalchemy.orm import Session
-from app.crud.base import CRUDBase
-from app.schemas.Peer import PeerUpdate,PeerCreate
-from app.models.peer import Peer
-from app.core.Settings import get_settings
-import subprocess, os, datetime, logging, qrcode, uuid
+import datetime
+import logging
+import os
+import qrcode
+import subprocess
+import uuid
+
 from qrcode.image.svg import SvgPathImage
+from sqlalchemy.orm import Session
+
+from app.core.Settings import get_settings
+from app.crud.base import CRUDBase
 from app.crud.crud_wgserver import crud_wg_interface
+from app.models.peer import Peer
+from app.schemas.Peer import PeerUpdate, PeerCreate
 
 settings = get_settings()
 logging.basicConfig(level=logging.INFO)
@@ -16,14 +23,14 @@ class CRUDPeer(CRUDBase[Peer, PeerCreate, PeerUpdate]):
         new_ip_address = None
         peers = db.query(Peer).all()
         peers_len = db.query(Peer).count()
-        if peers_len == 0:
+        if peers_len==0:
             new_ip_address = settings.WG_DEFAULT_ADDRESS.replace("x", str(2))
         else:
             for i in range(2, 255):
                 ip_available = False
                 for peer in peers:
-                    if peer.address == settings.WG_DEFAULT_ADDRESS.replace(
-                        "x", str(i)
+                    if peer.address==settings.WG_DEFAULT_ADDRESS.replace(
+                            "x", str(i)
                     ):
                         ip_available = True
                 if not ip_available:
@@ -56,7 +63,6 @@ class CRUDPeer(CRUDBase[Peer, PeerCreate, PeerUpdate]):
             .splitlines()
         )
         if len(dump):
-            # print('-->',orm_peers[0])
             del dump[0]
         # del dump[0]
         for line in dump:
@@ -71,15 +77,15 @@ class CRUDPeer(CRUDBase[Peer, PeerCreate, PeerUpdate]):
                 persistent_keepalive,
             ) = line.split("\t")
             for peer in orm_peers:
-                if peer.public_key == public_key:
-                    if latestHandshakeAt != "0":
+                if peer.public_key==public_key:
+                    if latestHandshakeAt!="0":
                         peer.latestHandshakeAt = datetime.datetime.fromtimestamp(
                             int(latestHandshakeAt)
                         )
                     else:
                         peer.latestHandshakeAt = None
                     peer.persistent_keepalive = (
-                        persistent_keepalive if persistent_keepalive != "off" else None
+                        persistent_keepalive if persistent_keepalive!="off" else None
                     )
                     peer.transferRx = int(transfer_rx or 0)
                     peer.transferTx = int(transfer_tx or 0)

@@ -8,7 +8,7 @@ from app.api.deps import get_current_active_superuser
 
 router = APIRouter()
 
-
+"""     for future development      """
 @router.post(
     '/create',
     dependencies=[Depends(get_current_active_superuser)],

@@ -1,7 +1,10 @@
+import datetime
 import subprocess
+
 from pydantic import BaseModel, model_validator
+
 from app.core.Settings import get_settings
-from app.schemas.Peer import InterfacePeer
+
 
 settings = get_settings()
 
@@ -72,11 +75,32 @@ class WGInterfaceInDb(WGInterface):
         from_attributes = True
 
 
-class WGInterfaceConfigOut(WGInterface):
+class WGInterfacePeer(BaseModel):
+    """
+    *In daemon Interface's Peer configs
+    """
+    public_key: str
+    preshared_key: str
+    address: str | None = None
+    persistent_keepalive: int | None = None
+    last_handshake_at: datetime.datetime | None = None
+    rx_bytes: int | None = 0
+    tx_bytes: int | None = 0
+    protocol_version: int | None = None
+    # family: int | None = None
+    endpoint_addr: str | None = None
+    endpoint_port: int | None = None
+    allowed_ips: list[str] | None = None
+
+
+class WGInterfaceConfig(BaseModel):
+    """
+    *In daemon WG Interface configs
+    """
     listen_port: int
     fwmark: int | None = None
     interface_index: int
-    interface: str
+    interface_name: str
     private_key: str
     public_key: str
-    peers: list[InterfacePeer]
+    peers: list[WGInterfacePeer]

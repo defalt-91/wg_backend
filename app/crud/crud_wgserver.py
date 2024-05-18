@@ -1,18 +1,16 @@
 import logging
 import os
 import pathlib
-import pyroute2
-import subprocess
 from typing import Type
 
+import pyroute2
 from sqlalchemy.orm import Session
 
 from app.core.Settings import get_settings
 from app.crud.base import CRUDBase
 from app.models.peer import Peer
 from app.models.wg_interface import WGInterface
-from app.schemas.Peer import PeerRXRT, InterfacePeer
-from app.schemas.wg_interface import WGInterfaceCreate, WGInterfaceUpdate, WGInterfaceConfigOut
+from app.schemas.wg_interface import WGInterfaceCreate, WGInterfaceUpdate, WGInterfaceConfig, WGInterfacePeer
 
 settings = get_settings()
 logging.basicConfig(level=logging.INFO)
@@ -20,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class CRUDWGInterface(CRUDBase[WGInterface, WGInterfaceCreate, WGInterfaceUpdate]):
-    def __init__(self, model: WGInterface):
+    def __init__(self, model: Type[WGInterface]):
         self.wg = pyroute2.WireGuard()
         super().__init__(model)
 
@@ -30,7 +28,7 @@ class CRUDWGInterface(CRUDBase[WGInterface, WGInterfaceCreate, WGInterfaceUpdate
     def get_server_config(self, session: Session) -> Type[WGInterface] | None:
         return session.query(self.model).first()
 
-    def create_write_wgserver_file(self, orm_server: WGInterface):
+    def create_wg_quick_config_file(self, orm_server: WGInterface):
         logger.info(
             f"Writing database server config file to: {pathlib.Path(settings.wgserver_file_path).resolve()}"
         )
@@ -95,7 +93,7 @@ class CRUDWGInterface(CRUDBase[WGInterface, WGInterfaceCreate, WGInterfaceUpdate
 
 
     def set_peer_args(self, peer: Peer):
-        return InterfacePeer(
+        return WGInterfacePeer(
             public_key=peer.public_key,
             endpoint_addr=str(settings.WG_HOST_IP),
             endpoint_port=settings.WG_HOST_PORT,
@@ -104,28 +102,7 @@ class CRUDWGInterface(CRUDBase[WGInterface, WGInterfaceCreate, WGInterfaceUpdate
             address=f"{peer.address}/32",
         )
 
-    async def get_rxrt(self):
-        try:
-            proc = subprocess.run(
-                ["wg", "show", settings.WG_INTERFACE, "transfer"],
-                capture_output=True,
-                text=True,
-            )
-            lines = proc.stdout.strip().splitlines()
-            peer_rx_rt_list: list[dict[str, str | int]] = []
-            for peer in lines:
-                public_key, rx, tx = peer.split("\t")
-                peer_rx_rt_list.append(
-                    PeerRXRT(
-                        public_key=public_key, transfer_rx=rx, transfer_tx=tx
-                    ).model_dump()
-                )
-            return peer_rx_rt_list
-        except pyroute2.netlink.exceptions.NetlinkError as exc:
-            msg = f"Unable to access interface: {exc.args[1]}"
-            raise RuntimeError(msg) from exc
-
-    def get_config(self, db: Session) -> WGInterfaceConfigOut:
+    def get_config(self, db: Session) -> tuple[list[Peer], WGInterfaceConfig]:
         try:
             attrs = dict(self.wg.info(settings.WG_INTERFACE)[0]["attrs"])
             # with open(f"{settings.WG_CONFIG_DIR_PATH}/wg_output_attrs.py", "w+") as f:
@@ -133,15 +110,15 @@ class CRUDWGInterface(CRUDBase[WGInterface, WGInterfaceCreate, WGInterfaceUpdate
         except pyroute2.netlink.exceptions.NetlinkError as exc:
             msg = f"Unable to access interface: {exc.args[1]}"
             raise RuntimeError(msg) from exc
-        if_config = WGInterfaceConfigOut(
-            private_key=attrs["WGDEVICE_A_PRIVATE_KEY"].decode("utf-8"),
-            fwmark=attrs["WGDEVICE_A_FWMARK"],
+        if_config = WGInterfaceConfig(
             listen_port=attrs["WGDEVICE_A_LISTEN_PORT"] or None,
-            interface=attrs["WGDEVICE_A_IFNAME"],
+            fwmark=attrs["WGDEVICE_A_FWMARK"],
+            private_key=attrs["WGDEVICE_A_PRIVATE_KEY"].decode("utf-8"),
+            interface_name=attrs["WGDEVICE_A_IFNAME"],
             interface_index=attrs["WGDEVICE_A_IFINDEX"],
             public_key=attrs["WGDEVICE_A_PUBLIC_KEY"],
             peers=[
-                InterfacePeer(
+                WGInterfacePeer(
                     public_key=peer_attrs["WGPEER_A_PUBLIC_KEY"].decode("utf-8"),
                     preshared_key=peer_attrs["WGPEER_A_PRESHARED_KEY"].decode("utf-8")
                                   or None,
@@ -166,6 +143,9 @@ class CRUDWGInterface(CRUDBase[WGInterface, WGInterfaceCreate, WGInterfaceUpdate
                     ),
                     rx_bytes=peer_attrs.get("WGPEER_A_RX_BYTES"),
                     tx_bytes=peer_attrs.get("WGPEER_A_TX_BYTES"),
+
+                    protocol_version=peer_attrs.get("WGPEER_A_PROTOCOL_VERSION", {}),
+                    # family=peer_attrs.get("WGPEER_A_ENDPOINT", {}).get("family", None),
                 )
                 for peer_attrs in (
                     dict(peer["attrs"]) for peer in attrs.get("WGDEVICE_A_PEERS", [])
@@ -176,17 +156,35 @@ class CRUDWGInterface(CRUDBase[WGInterface, WGInterfaceCreate, WGInterfaceUpdate
         peers: list[Peer] = orm_server.peers
         for db_peer in peers:
             for interface_peer in if_config.peers:
-                if db_peer.public_key == interface_peer.public_key:
+                if db_peer.public_key==interface_peer.public_key:
                     db_peer.transfer_tx = interface_peer.tx_bytes
                     db_peer.transfer_rx = interface_peer.rx_bytes
                     db_peer.last_handshake_at = interface_peer.last_handshake_at
                     # db_peer.persistent_keepalive = interface_peer.persistent_keepalive
-                    db_peer.friendly_name = "friendly_name"
-                    # friendly_json={"hello":"world"}
                     # db_peer.wgserver_id = orm_server.id
         db.add_all(peers)
         db.commit()
-        return peers
+        return peers, if_config
+
+    def get_only_peers(self):
+        try:
+            if_peers = dict(self.wg.info(settings.WG_INTERFACE)[0]["attrs"])
+            if_peers = if_peers.get("WGDEVICE_A_PEERS", {})
+            # with open(f"{settings.WG_CONFIG_DIR_PATH}/wg_output_attrs.py", "w+") as f:
+            #     f.write(attrs.__str__())
+        except pyroute2.netlink.exceptions.NetlinkError as exc:
+            msg = f"Unable to access interface: {exc.args[1]}"
+            raise RuntimeError(msg) from exc
+        return [
+            WGInterfacePeer(
+                public_key=peer.get("WGPEER_A_PUBLIC_KEY").decode("utf-8"),
+                preshared_key=peer.get("WGPEER_A_PRESHARED_KEY").decode("utf-8"),
+                last_handshake_at=peer.get("WGPEER_A_LAST_HANDSHAKE_TIME", {}).get("tv_sec"),
+                # persistent_keepalive=peer.get("WGPEER_A_PERSISTENT_KEEPALIVE_INTERVAL",0),
+                tx_bytes=peer.get("WGPEER_A_TX_BYTES", 0),
+                rx_bytes=peer.get("WGPEER_A_RX_BYTES", 0),
+                # protocol_version=peer.get("WGPEER_A_PROTOCOL_VERSION",0),
+            ) for peer in if_peers]
 
 
 crud_wg_interface = CRUDWGInterface(WGInterface)

@@ -19,31 +19,31 @@ class TimedRoute(APIRoute):
         return custom_route_handler
 
 
-api_router = APIRouter(redirect_slashes=False, route_class=TimedRoute, prefix="/v1")
+v1_api_router = APIRouter(redirect_slashes=False, route_class=TimedRoute, prefix="/v1")
 
 
-api_router.include_router(
+v1_api_router.include_router(
     router=login.router,
     tags=["login"],
     prefix="",
     include_in_schema=True,
     deprecated=False,
 )
-api_router.include_router(
+v1_api_router.include_router(
     router=users.router,
     prefix="/users",
     tags=["users"],
     include_in_schema=True,
     deprecated=False,
 )
-api_router.include_router(
+v1_api_router.include_router(
     peer.router,
     prefix="",
     tags=["Peers"],
     include_in_schema=True,
     deprecated=False,
 )
-api_router.include_router(
+v1_api_router.include_router(
     wg_interface.router,
     prefix="/wgif",
     tags=["WG_Interface", "in development"],

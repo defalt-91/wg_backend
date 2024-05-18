@@ -102,7 +102,6 @@ class Settings(BaseSettings):
         return f"{self.WG_CONFIG_DIR_PATH}/{self.WG_INTERFACE}-peers.conf"
 
 
-# PostUp = wg addconf %i /etc/wireguard/wg0-peers.conf
 @lru_cache
 def get_settings() -> Settings:
     return Settings()

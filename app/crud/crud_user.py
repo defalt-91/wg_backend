@@ -1,6 +1,8 @@
 from typing import Any, Dict, Optional, Union
-from sqlalchemy.orm import Session
+
 from sqlalchemy import select
+from sqlalchemy.orm import Session
+
 from app.core.security import get_password_hash, verify_password
 from app.crud.base import CRUDBase
 from app.models.user import User
@@ -10,7 +12,7 @@ from app.schemas.user import UserCreate, UserUpdate
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
 
     def get_by_username(self, session: Session, username: str) -> User:
-        stmt = select(self.model).where(self.model.username == username)
+        stmt = select(self.model).where(self.model.username==username)
         db_data = session.execute(stmt)
         return db_data.scalar_one_or_none()
 
@@ -27,7 +29,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         return db_obj
 
     def update(
-        self, db: Session, *, db_obj: User, obj_in: Union[UserUpdate, Dict[str, Any]]
+            self, db: Session, *, db_obj: User, obj_in: Union[UserUpdate, Dict[str, Any]]
     ) -> User:
         if isinstance(obj_in, dict):
             update_data = obj_in
@@ -40,7 +42,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         return super().update(db, db_obj=db_obj, obj_in=update_data)
 
     def authenticate(
-        self, db: Session, *, username: str, password: str
+            self, db: Session, *, username: str, password: str
     ) -> Optional[User]:
         user = self.get_by_username(db, username=username)
         if not user:
