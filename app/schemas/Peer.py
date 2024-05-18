@@ -41,12 +41,6 @@ class PeerUpdate(PeerBase):
     name: str | None = None
     enabled: bool | None = None
 
-    @model_validator(mode="after")
-    def check_downloadable_config(self):
-        if self.private_key:
-            self.downloadable_config = True
-        return self
-
 
 class PeerCreate(PeerBase):
     name: str
@@ -54,7 +48,7 @@ class PeerCreate(PeerBase):
 
     @model_validator(mode="after")
     def verify_fields(self):
-        # self.enabled = True
+        self.enabled = True
         command = ["wg", "pubkey"]
         self.private_key = (
             subprocess.run(["wg", "genkey"], stdout=subprocess.PIPE)
@@ -93,7 +87,7 @@ class PeerRXRT(BaseModel):
 class PeerInDbBase(BaseModel):
     id: uuid.UUID
     name: str
-    enable: bool | None = None
+    enabled: bool | None = None
     interface_id: int
     private_key: str
     public_key: str
@@ -114,7 +108,26 @@ class PeerInDbBase(BaseModel):
         from_attributes = True
 
 
-class PeerOut(PeerInDbBase):
+class PeerOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    enabled: bool | None = None
+    public_key: str
     downloadable_config: bool = False
-    allowed_ips: list[str] | None = ["0.0.0.0/0, ::0"]
+    # allowed_ips: list[str] | None = ["0.0.0.0/0, ::0"]
+    interface_id: int
+    created_at: datetime.datetime
+    updated_at: datetime.datetime | None = None
+    address: str | None = None
+    persistent_keepalive: int | None = None
+    transfer_rx: int | None = None
+    transfer_tx: int | None = None
+    last_handshake_at: datetime.datetime | None = None
+    friendly_name: str | None = None
+    friendly_json: dict | None = None
 
+    @model_validator(mode="after")
+    def check_downloadable_config(self):
+        if self.public_key:
+            self.downloadable_config = True
+        return self

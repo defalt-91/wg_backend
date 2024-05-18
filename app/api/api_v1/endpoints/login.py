@@ -34,12 +34,11 @@ async def login_for_access_token(
     elif not crud.user.is_active(user):
         raise inactive_user()
     access_token_expires = timedelta(minutes=180)
-
     access_token = create_access_token(
         data={"sub": user.username, "scopes": form_data.scopes},
         expires_delta=access_token_expires,
     )
-    return Token(access_token=access_token, token_type="bearer")
+    return Token(access_token=access_token, token_type="bearer",scopes=' '.join(form_data.scopes))
 
 
 @router.post(

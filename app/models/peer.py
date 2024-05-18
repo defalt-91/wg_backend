@@ -8,7 +8,7 @@ from app.db.registry import DateMixin, NameMixin, mapper_registry
 class Peer(DateMixin, NameMixin):
     id = Column(Uuid(as_uuid=True), default=uuid.uuid4, primary_key=True, index=True, unique=True)
     name = Column(String(256), index=True)
-    enabled = Column(Boolean(), nullable=False, default=False)
+    enabled = Column(Boolean(), nullable=False)
     interface_id = Column(Integer, ForeignKey("wginterface.id", ondelete="CASCADE"), nullable=False)
     private_key = Column(String(256), nullable=False)
     public_key = Column(String(256), nullable=False)

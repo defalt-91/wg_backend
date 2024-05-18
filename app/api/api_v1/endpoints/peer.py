@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse, Response
 from sqlalchemy.orm import Session
 
-from app.api.deps import ConnectionManager, get_current_active_user
+from app.api.deps import ConnectionManager
 from app.api.deps import get_current_user as get_current_active_superuser, get_session
 from app.crud.crud_peer import crud_peer
 from app.crud.crud_wgserver import crud_wg_interface
@@ -38,17 +38,12 @@ async def websocket_rx_rt(websocket: WebSocket):
 
 @router.get(
     "/peers/",
-    response_model=list[PeerOut],
-    response_model_exclude_none=True,
-    response_model_exclude_unset=True,
     dependencies=[Depends(get_current_active_superuser)],
+    response_model=list[PeerOut],
+    response_model_exclude={"public_key"},
 )
 async def peer_list(db: Session = Depends(get_session)):
-    # return crud_peer.peer_list_out(session=db)
     return crud_wg_interface.get_config(db)
-
-
-# return crud_peer.get_multi(db)
 
 
 @router.post(
@@ -57,7 +52,14 @@ async def peer_list(db: Session = Depends(get_session)):
     dependencies=[Depends(get_current_active_superuser)],
     response_model_exclude_none=True,
     response_model_exclude_unset=True,
-    response_model_exclude={ "private_key", "public_key", "preshared_key" ,"transfer_rx", "transfer_tx", "last_handshake_at"}
+    response_model_exclude={
+        "private_key",
+        "public_key",
+        "preshared_key",
+        "transfer_rx",
+        "transfer_tx",
+        "last_handshake_at"
+    }
 )
 async def create_peer(
         peer_in: PeerCreate,
@@ -66,13 +68,12 @@ async def create_peer(
     server = crud_wg_interface.get_server_config(db)
     peer_in.interface_id = server.id
     new_db_peer = crud_peer.create(db, obj_in=peer_in)
-    print('--___>',new_db_peer)
     crud_wg_interface.add_peer(peer=new_db_peer)
     return new_db_peer
 
 
 @router.put(
-    "/peer/{peer_id}/",
+    "/peer/{peer_id}",
     response_model=PeerOut,
     dependencies=[Depends(get_current_active_superuser)],
 )
@@ -82,6 +83,7 @@ async def update_peer(
         db: Session = Depends(get_session),
 ):
     db_peer = db.get(Peer, peer_id)
+    print(peer.enabled)
     updated_peer_dict = peer.model_dump(exclude_none=True, exclude_unset=True)
     # updated_peer_dict['allowedIPs'] = ",".join(peer.allowedIPs)
     updated_peer = crud_peer.update(db, db_obj=db_peer, obj_in=updated_peer_dict)
@@ -93,7 +95,7 @@ async def update_peer(
 
 
 @router.delete(
-    "/peer/{peer_id}/",
+    "/peer/{peer_id}",
     response_model=PeerOut,
     dependencies=[Depends(get_current_active_superuser)],
 )
@@ -104,7 +106,7 @@ async def delete_peer(peer_id: uuid.UUID, db: Session = Depends(get_session)):
 
 
 @router.get(
-    "/peer/{peer_id}/svgqrcode/",
+    "/peer/{peer_id}/svgqrcode",
     dependencies=[Depends(get_current_active_superuser)],
 )
 async def create_svg_from_config(
@@ -117,7 +119,7 @@ async def create_svg_from_config(
 
 
 @router.get(
-    "/peer/{peer_id}/configuration/",
+    "/peer/{peer_id}/configuration",
     dependencies=[Depends(get_current_active_superuser)],
 )
 async def peer_configuration(
@@ -137,6 +139,3 @@ async def peer_configuration(
     }
     return StreamingResponse(f, headers=headers)
 
-# @router.get('/peers/rxrt',response_model=list[PeerRXRT],dependencies=[Depends(get_current_active_superuser)])
-# async def clients_rx_rt(db:Session = Depends(get_session)):
-#     return crud_peer.peer_list_out(db)

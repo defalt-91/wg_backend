@@ -1,13 +1,18 @@
+import logging
+import os
 import pathlib
+import pyroute2
+import subprocess
 from typing import Type
+
 from sqlalchemy.orm import Session
+
+from app.core.Settings import get_settings
 from app.crud.base import CRUDBase
 from app.models.peer import Peer
 from app.models.wg_interface import WGInterface
 from app.schemas.Peer import PeerRXRT, InterfacePeer
 from app.schemas.wg_interface import WGInterfaceCreate, WGInterfaceUpdate, WGInterfaceConfigOut
-from app.core.Settings import get_settings
-import datetime, os, logging, pyroute2, subprocess
 
 settings = get_settings()
 logging.basicConfig(level=logging.INFO)
@@ -88,9 +93,8 @@ class CRUDWGInterface(CRUDBase[WGInterface, WGInterfaceCreate, WGInterfaceUpdate
             peer=updated_peer_dict,
         )
 
+
     def set_peer_args(self, peer: Peer):
-        print("====>address", peer.address)
-        # print("allowedIps", peer.allowedIPs)
         return InterfacePeer(
             public_key=peer.public_key,
             endpoint_addr=str(settings.WG_HOST_IP),
@@ -172,15 +176,14 @@ class CRUDWGInterface(CRUDBase[WGInterface, WGInterfaceCreate, WGInterfaceUpdate
         peers: list[Peer] = orm_server.peers
         for db_peer in peers:
             for interface_peer in if_config.peers:
-                if db_peer.public_key==interface_peer.public_key:
+                if db_peer.public_key == interface_peer.public_key:
                     db_peer.transfer_tx = interface_peer.tx_bytes
                     db_peer.transfer_rx = interface_peer.rx_bytes
-                    db_peer.latestHandshakeAt = interface_peer.last_handshake_at
-                    # db_peer.persistentKeepalive = interface_peer.persistent_keepalive
-                    # enabled
+                    db_peer.last_handshake_at = interface_peer.last_handshake_at
+                    # db_peer.persistent_keepalive = interface_peer.persistent_keepalive
                     db_peer.friendly_name = "friendly_name"
                     # friendly_json={"hello":"world"}
-                    db_peer.wgserver_id = orm_server.id
+                    # db_peer.wgserver_id = orm_server.id
         db.add_all(peers)
         db.commit()
         return peers
