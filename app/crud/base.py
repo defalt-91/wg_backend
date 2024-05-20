@@ -27,11 +27,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     def create(self, db: Session, *, obj_in: CreateSchemaType) -> ModelType:
         obj_in_data = jsonable_encoder(obj_in)
         db_obj = self.model(**obj_in_data)  # type: ignore
-        db.add(db_obj)
-        # db.flush()
-        db.commit()
-        db.refresh(db_obj)
-        return db_obj
+        return self.save(session=db, obj=db_obj)
 
     def get_object_or_404(
             self, session: Session, instance_id: int
@@ -69,18 +65,14 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         for field in obj_data:
             if field in update_data:
                 setattr(db_obj, field, update_data[field])
-        db.add(db_obj)
-        # db.flush()
-        db.commit()
-        db.refresh(db_obj)
-        return db_obj
+        return self.save(session=db, obj=db_obj)
 
     def remove(self, db: Session, *, item_id: int) -> ModelType:
         obj = db.query(self.model).get(item_id)
         if not obj:
-            raise exceptions.not_found_error()
+            return exceptions.not_found_error()
         db.delete(obj)
-        # db.flush()
+        db.commit()
         return obj
 
     def save(self, session: Session, obj: ModelType) -> ModelType:

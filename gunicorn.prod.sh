@@ -1,12 +1,12 @@
 #! /usr/bin/env bash
 set -e
-DEFAULT_GUNICORN_CONF=/app/gunicorn_conf.py
+set -x
 
 # # Run migrations
 # alembic upgrade head
 # alembic revision --autogenerate -m 'create db'
 # Run migrations
-alembic upgrade head
+#alembic upgrade head
 # ip link add dev wg0 type wireguard
 # Let the DB start
 python backend_pre_start.py

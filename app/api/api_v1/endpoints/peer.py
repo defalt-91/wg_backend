@@ -7,14 +7,13 @@ from fastapi import (
     Depends
 )
 from fastapi.responses import StreamingResponse, Response
-from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_active_superuser
 from app.crud.crud_peer import crud_peer
 from app.crud.crud_wgserver import crud_wg_interface
-from app.db.session import get_session
+from app.db.session import SessionDep
 from app.models.peer import Peer
-from app.schemas.Peer import PeerOut, PeerUpdate, PeerCreate, PeerRXRT
+from app.schemas.Peer import PeerOut, PeerUpdate, PeerCreate, PeerRXRT, PeerBase
 
 router = APIRouter()
 
@@ -28,7 +27,7 @@ router = APIRouter()
     dependencies=[Depends(get_current_active_superuser)]
 )
 async def get_peers_rxtx() -> list[PeerRXRT]:
-    return crud_wg_interface.get_only_peers()
+    return crud_wg_interface.get_rxtx_config()
 
 
 @router.get(
@@ -37,9 +36,12 @@ async def get_peers_rxtx() -> list[PeerRXRT]:
     response_model=list[PeerOut],
     response_model_exclude={"public_key"},
 )
-async def peer_list(db: Session = Depends(get_session)):
-    peers, if_config = crud_wg_interface.get_config(db)
-    return peers
+async def peer_list(db: SessionDep):
+    """
+    Peers list
+    """
+    return  crud_wg_interface.get_full_config(db)
+
 
 
 @router.post(
@@ -53,12 +55,13 @@ async def peer_list(db: Session = Depends(get_session)):
         "transfer_rx",
         "transfer_tx",
         "last_handshake_at"
-    }
+    },
 )
 async def create_peer(
         peer_in: PeerCreate,
-        db: Session = Depends(get_session),
+        db: SessionDep,
 ):
+    """ Create Wireguard interface peer """
     server = crud_wg_interface.get_server_config(db)
     peer_in.interface_id = server.id
     new_db_peer = crud_peer.create(db, obj_in=peer_in)
@@ -74,7 +77,7 @@ async def create_peer(
 async def update_peer(
         peer_id: uuid.UUID,
         peer: PeerUpdate,
-        db: Session = Depends(get_session),
+        db: SessionDep,
 ):
     db_peer = db.get(Peer, peer_id)
     updated_peer_dict = peer.model_dump(exclude_none=True, exclude_unset=True)
@@ -92,7 +95,7 @@ async def update_peer(
     response_model=PeerOut,
     dependencies=[Depends(get_current_active_superuser)],
 )
-async def delete_peer(peer_id: uuid.UUID, db: Session = Depends(get_session)):
+async def delete_peer(peer_id: uuid.UUID, db: SessionDep):
     deleted_peer = crud_peer.remove(db=db, item_id=peer_id)
     crud_wg_interface.remove_peer(deleted_peer.public_key)
     return deleted_peer
@@ -103,7 +106,7 @@ async def delete_peer(peer_id: uuid.UUID, db: Session = Depends(get_session)):
     dependencies=[Depends(get_current_active_superuser)],
 )
 async def create_svg_from_config(
-        peer_id: uuid.UUID, db: Session = Depends(get_session)
+        peer_id: uuid.UUID, db: SessionDep
 ):
     svg = crud_peer.peer_qrcode_svg(db=db, peer_id=peer_id)
     return Response(
@@ -116,7 +119,7 @@ async def create_svg_from_config(
     dependencies=[Depends(get_current_active_superuser)],
 )
 async def peer_configuration(
-        peer_id: uuid.UUID, db: Session = Depends(get_session)
+        peer_id: uuid.UUID, db: SessionDep
 ):
     peer_config = crud_peer.get_peer_config(db, peer_id)
     peer = crud_peer.get(db, peer_id)

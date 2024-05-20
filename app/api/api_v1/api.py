@@ -19,7 +19,7 @@ class TimedRoute(APIRoute):
         return custom_route_handler
 
 
-v1_api_router = APIRouter(redirect_slashes=False, route_class=TimedRoute, prefix="/v1")
+v1_api_router = APIRouter(redirect_slashes=False, route_class=TimedRoute, prefix="")
 
 
 v1_api_router.include_router(

@@ -1,8 +1,12 @@
-import logging, pathlib
-from tenacity import after_log, before_log, retry, stop_after_attempt, wait_fixed
-from sqlalchemy.sql import text
-from app.db.session import SessionFactory
+import logging
+import pathlib
+
 from alembic import command, config
+from sqlalchemy import Engine, select
+from tenacity import after_log, before_log, retry, stop_after_attempt, wait_fixed
+
+from app.db.session import SessionFactory
+
 
 # from alembic import migration,op,command,env,config,util,operations,runtime,script,ddl,Operations,autogenerate
 
@@ -12,12 +16,6 @@ logger = logging.getLogger(__name__)
 
 max_tries = 60 * 5  # 5 minutes
 wait_seconds = 1
-try:
-    alembic_config = config.Config(BASE_DIR / 'alembic.ini')
-    command.upgrade(config=alembic_config, revision='head')
-except Exception as err:
-    logger.critical('Alembic upgrade error: {}'.format(err))
-logger.debug("Alembic upgraded database to last revision.")
 
 
 @retry(
@@ -28,11 +26,16 @@ logger.debug("Alembic upgraded database to last revision.")
 )
 def init() -> None:
     try:
-        db = SessionFactory()
-        # Try to create session to check if DB is awake
-        db.execute(text("SELECT 1"))
+        # alembic upgrade head
+        alembic_config = config.Config(BASE_DIR / 'alembic.ini')
+        command.upgrade(config=alembic_config, revision='head')
+        with SessionFactory() as session:
+            # Try to create session to check if DB is awake
+            session.execute(select(1))
+            # breakpoint()
+
     except Exception as e:
-        logger.error(e)
+        logger.error('Alembic upgrade error: {}'.format(e))
         raise e
 
 
@@ -42,5 +45,5 @@ def main() -> None:
     logger.info("Service finished initializing")
 
 
-if __name__ == "__main__":
+if __name__=="__main__":
     main()

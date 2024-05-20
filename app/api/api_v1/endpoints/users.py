@@ -1,72 +1,99 @@
-from typing import Any, List, Annotated
+from typing import Any, List
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends
 from fastapi.encoders import jsonable_encoder
-from sqlalchemy.orm import Session
-from app import crud, models
-from app.api.deps import get_current_active_user
+
+from app.api import deps, exceptions
+from app.api.deps import get_current_active_user, CurrentUser
+from app.crud.crud_user_fn import get_user_by_username, create_user, update_user, get_user_by_email
+from app.db.session import SessionDep
+from app.models import User
 from app.schemas.user import UserOut, UserCreate, UserUpdate
-from app.api import deps
-from app.db.session import get_session
 
 router = APIRouter()
 
 
 @router.get("/", response_model=List[UserOut], dependencies=[Depends(deps.get_current_active_superuser)])
-async def read_users(
-        db: Session = Depends(get_session),
+async def read_users_api(
+        db: SessionDep,
         skip: int = 0,
         limit: int = 100,
-        current_user: models.User = Depends(deps.get_current_active_user),
+        # current_user: CurrentUser,
 ) -> list[UserOut | None]:
     """
     Retrieve users.
     """
-    return crud.user.get_multi(db, skip=skip, limit=limit)
+    object_list = db.query(User).offset(skip).limit(limit).all()
+    if not object_list:
+        raise exceptions.client_not_found()
+    return object_list
 
 
-@router.post("/", response_model=UserOut, dependencies=[Depends(get_current_active_user)])
-async def create_user(
+@router.post(
+    "/",
+    response_model=UserOut,
+    dependencies=[Depends(get_current_active_user)],
+    summary="Create new user",
+    name="Peer Creator",
+    openapi_extra={
+        "x-aperture-labs-portal": "blue",
+        "requestBody": {
+            "content": {"application/x-yaml": {"schema": UserCreate.model_json_schema()}},
+            "required": True,
+        },
+    }
+
+)
+async def create_user_end(
         *,
-        db: Session = Depends(get_session),
+        session: SessionDep,
         user_in: UserCreate,
 ) -> Any:
     """
-    Create new user.
+    Create an User with all the information:
+
+    - **username**: each user must have a username
+    - **description**: a long description
+    - **scopes**: user permissions
+    - **email**: not required
+    \f
+    :param User: User input.
     """
-    user = crud.user.get_by_username(db, username=user_in.username)
+    user = get_user_by_username(session=session, username=user_in.username)
     if user:
-        raise HTTPException(
-            status_code=400,
-            detail="The user with this username already exists in the system.",
-        )
-    user = crud.user.create(db, obj_in=user_in)
-    return user
+        raise exceptions.username_exist()
+    if user_in.email:
+        user_with_email = get_user_by_email(session=session, email=user_in.email)
+        if user_with_email:
+            raise exceptions.email_exist()
+    return create_user(session=session, user_create=user_in)
 
 
 @router.put("/me", response_model=UserOut)
 async def update_user_me(
         *,
-        db: Session = Depends(get_session),
+        db: SessionDep,
         password: str = Body(None),
         username: str = Body(None),
-        current_user: models.User = Depends(deps.get_current_active_user),
+        current_user: CurrentUser,
 ) -> Any:
     """Update own user."""
+
+    if get_user_by_username(session=db, username=username):
+        raise exceptions.username_exist()
     current_user_data = jsonable_encoder(current_user)
     user_in = UserUpdate(**current_user_data)
     if password is not None:
         user_in.password = password
     if username is not None:
         user_in.username = username
-    user = crud.user.update(db, db_obj=current_user, obj_in=user_in)
-    return user
+    return update_user(session=db, db_user=current_user, user_in=user_in)
 
 
 @router.get("/me", response_model=UserOut)
-async def read_user_me(
-        db: Session = Depends(get_session),
-        current_user: models.User = Depends(deps.get_current_active_user),
+async def read_user_me_end(
+        db: SessionDep,
+        current_user: CurrentUser,
 ) -> Any:
     """
     Get current user.
@@ -75,59 +102,61 @@ async def read_user_me(
 
 
 @router.post("/open", response_model=UserOut)
-async def create_user_open(
+async def create_user_open_end(
         *,
-        db: Session = Depends(get_session),
+        session: SessionDep,
         password: str = Body(...),
         username: str = Body(...),
 ) -> Any:
     """
     Create new user without the need to be logged in.
     """
-    user = crud.user.get_by_username(db, username=username)
+    user = get_user_by_username(session=session, username=username)
     if user:
-        raise HTTPException(
-            status_code=400,
-            detail="The user with this username already exists in the system",
-        )
+        raise exceptions.username_exist()
     user_in = UserCreate(password=password, username=username)
-    user = crud.user.create(db, obj_in=user_in)
-    return user
+    return create_user(session=session, user_create=user_in)
 
 
 @router.get("/{user_id}", response_model=UserOut)
-async def read_user_by_id(
+async def read_user_by_id_end(
         user_id: int,
-        current_user: models.User = Depends(deps.get_current_active_user),
-        db: Session = Depends(get_session),
+        db: SessionDep,
+        current_user: CurrentUser,
 ) -> Any:
     """
     Get a specific user by id.
     """
-    user = crud.user.get(db, item_id=user_id)
+    # statement = select(User).where(User.id == user_id)
+    # user = db.execute(statement).scalar()
+    user = db.query(User).get(user_id)
     if user==current_user:
         return user
-    if not crud.user.is_superuser(current_user):
-        raise HTTPException(
-            status_code=400, detail="The user doesn't have enough privileges"
-        )
+    if not current_user.is_superuser:
+        raise exceptions.not_superuser()
+    if not user:
+        raise exceptions.user_not_found()
     return user
 
 
 @router.put("/{user_id}", response_model=UserOut, dependencies=[Depends(deps.get_current_active_user)])
-async def update_user(
+async def update_user_endpoint(
         *,
-        db: Session = Depends(get_session),
+        db: SessionDep,
         user_id: int,
         user_in: UserUpdate,
-        # current_user: models.User = Depends(deps.get_current_active_user),
+        # current_user: CurrentUser,
 ) -> Any:
     """Update a user."""
-    user = crud.user.get(db, item_id=user_id)
+    user = db.query(User).get(user_id)
+    if user_in.email:
+        existing_user = get_user_by_email(session=db, email=user_in.email)
+        if existing_user and existing_user.id!=user_id:
+            raise exceptions.email_exist()
+    if user_in.username:
+        existing_user = get_user_by_username(session=db, username=user_in.username)
+        if existing_user and existing_user.id!=user_id:
+            raise exceptions.username_exist()
     if not user:
-        raise HTTPException(
-            status_code=404,
-            detail="The user with this username does not exist in the system",
-        )
-    user = crud.user.update(db, db_obj=user, obj_in=user_in)
-    return user
+        raise exceptions.user_not_exist_username()
+    return update_user(session=db, db_user=user, user_in=user_in)

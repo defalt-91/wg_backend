@@ -1,24 +1,37 @@
+import json
+import pathlib
+import subprocess
 from functools import lru_cache
-import subprocess, pathlib, json
 from typing import Optional
+
+from pydantic import IPvAnyAddress, model_validator, computed_field, PostgresDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import IPvAnyAddress, model_validator
 
 BASE_DIR = pathlib.Path().resolve()
 
+""" for creating SECRET_KEY locally """
+
+
+# import secrets; print(secrets.token_urlsafe(32))
+# openssl rand -hex 32
 
 class Settings(BaseSettings):
-    SECRET_KEY: str = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
-    DEBUG: bool = True
-    WG_SUBNET: Optional[str] = None
-    ALGORITHM: Optional[str] = "HS256"
     model_config = SettingsConfigDict(env_file=BASE_DIR / ".env")
+    DEBUG: bool = True
+    DOMAIN: str
+    SECRET_KEY: str = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
+    API_ADDRESS: str | None = "/api/v1"
+    ALGORITHM: Optional[str] = "HS256"
+    UI_TRAFFIC_STATS: bool = True
+    SQLALCHEMY_DATABASE_URI: str
+    BACKEND_SERVER_HOST: str | None = "localhost"
+    BACKEND_SERVER_PORT: int | None = 8000
+    """ gunicorn confs """
+    BACKEND_CORS_ORIGINS: list[str]
+    BACKEND_ALLOWED_HOSTS: list[str]
     WORKERS_PER_CORE: int = 1
     MAX_WORKERS: int = 1
     WEB_CONCURRENCY: int = 1
-    BACKEND_CORS_ORIGINS: list[str]
-    BACKEND_SERVER_HOST: str = "0.0.0.0"
-    BACKEND_SERVER_PORT: int = 8008
     LOG_LEVEL: str
     ACCESS_LOG: str = "/var/log/gunicorn/access.log"
     ERROR_LOG: str = "/var/log/gunicorn/error.log"
@@ -43,19 +56,50 @@ class Settings(BaseSettings):
     WG_POST_UP: Optional[str] = ""
     WG_POST_DOWN: Optional[str] = ""
     LANG: Optional[str] = "en"
-    UI_TRAFFIC_STATS: bool = True
-    SQLALCHEMY_DATABASE_URL: str = "sqlite:///./sqlite.db"
+
+    """
+    JWT Configs
+    """
+    ACCESS_TOKEN_EXPIRE_MINUTES: int | None = None
+    ACCESS_TOKEN_KEY_NAME: str | None = None
     """     
     For better exprience
     environments that need be Change    
     """
     SERVER_ID: Optional[int] = 1
 
+    """ email """
+    SMTP_HOST: str | None = None
+    SMTP_USER: str | None = None
+    SMTP_PASSWORD: str | None = None
+    EMAILS_FROM_EMAIL: str | None = None
+    SMTP_TLS: bool | None = None
+    SMTP_SSL: bool | None = None
+    SMTP_PORT: int | None = None
+    EMAIL_RESET_TOKEN_EXPIRE_HOURS: int | None = 24
+    EMAILS_FROM_NAME: str | None = 'test'
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def WG_SUBNET(self) -> PostgresDsn:
+        return f"{self.WG_DEFAULT_ADDRESS.replace('x', '0')}/24"
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def api_server_address(self) -> PostgresDsn:
+        return f"{self.WG_HOST_IP}:{self.WG_HOST_PORT}{self.API_ADDRESS}"
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def emails_enabled(self) -> bool:
+        return bool(self.SMTP_HOST and self.EMAILS_FROM_EMAIL)
+
     @model_validator(mode="after")
     def create_post_up_str(self):
+        if not self.ACCESS_TOKEN_KEY_NAME:
+            self.ACCESS_TOKEN_KEY_NAME = "access_token"
         # self.WG_PEERS_CONFIG_PATH = f"{self.WG_CONFIG_DIR_PATH}/{self.WG_INTERFACE}-peers.conf"
         self.WG_HOST_IP, self.WG_DEVICE = self.find_ip_and_interface()
-        self.WG_SUBNET = f"{self.WG_DEFAULT_ADDRESS.replace('x', '0')}/24"
         if not self.WG_POST_UP:
             WG_POST_UP_STR = [
                 f"iptables -t nat -A POSTROUTING -s {self.WG_DEFAULT_ADDRESS.replace('x', '0')}/24 -o {self.WG_DEVICE} -j MASQUERADE;",
@@ -82,8 +126,6 @@ class Settings(BaseSettings):
         if proc.stderr:
             raise Exception("Can't call linux ip addr")
         json_conf = json.loads(proc.stdout)
-        with open(f"{self.WG_CONFIG_DIR_PATH}/ip_addr_configs.json", "w") as f:
-            f.write(json.dumps(json_conf))
         for device in json_conf:
             if device["group"]=="default" and device["addr_info"][0]["scope"]=="global":
                 local_ip = device["addr_info"][0]["local"]

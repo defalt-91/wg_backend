@@ -1,12 +1,15 @@
+from typing import Generator, Annotated
+
+from fastapi import Depends
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from typing import Generator
+from sqlalchemy.orm import sessionmaker, Session
+
 from app.core.Settings import get_settings
 
 settings = get_settings()
 
 engine = create_engine(
-    url=settings.SQLALCHEMY_DATABASE_URL,
+    url=settings.SQLALCHEMY_DATABASE_URI,
     pool_pre_ping=True,
     echo=False,
     future=True,
@@ -33,6 +36,9 @@ def get_session() -> Generator:
         session.commit()
     finally:
         session.close()
+
+
+SessionDep = Annotated[Session, Depends(get_session)]
 
 
 class SessionContextManager:

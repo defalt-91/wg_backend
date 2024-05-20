@@ -1,5 +1,5 @@
 import pydantic.class_validators as py_validators
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from pydantic import model_validator
 
 
@@ -8,6 +8,11 @@ class UserBase(BaseModel):
     is_active: bool | None = True
     is_superuser: bool = False
     username: str | None = None
+    email: EmailStr | None = None
+    full_name: str | None = None
+    client_id: str | None = None
+    client_secret: str | None = None
+    scope: str | None = None
 
     @py_validators.validator("username")
     def username_check(cls, v, values):
@@ -53,5 +58,3 @@ class UserOut(UserInDBBase):
 class UserInDB(UserInDBBase):
     hashed_password: str
     scope: str
-    client_id: str | None = None
-    client_secret: str | None = None

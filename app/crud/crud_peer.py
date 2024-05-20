@@ -13,7 +13,7 @@ from app.crud.base import CRUDBase
 from app.crud.crud_wgserver import crud_wg_interface
 from app.models.peer import Peer
 from app.schemas.Peer import PeerUpdate, PeerCreate
-
+from app.api import exceptions
 settings = get_settings()
 logging.basicConfig(level=logging.INFO)
 
@@ -38,7 +38,7 @@ class CRUDPeer(CRUDBase[Peer, PeerCreate, PeerUpdate]):
                     break
 
         if not new_ip_address:
-            raise Exception("Maximum number of peers reached.")
+            raise exceptions.wg_max_num_ips_reached()
         new_peer = Peer(
             name=obj_in.name,
             enabled=obj_in.enabled,

@@ -18,6 +18,7 @@ class Peer(DateMixin, NameMixin):
     transfer_rx = Column(Integer, nullable=False, default=lambda: 0)
     transfer_tx = Column(Integer, nullable=False, default=lambda: 0)
     last_handshake_at = Column(TIMESTAMP(timezone=True), index=True, nullable=True, doc="Last hand shake at")
+    endpoint_addr = Column(String(256), nullable=True)
     """ this is for peer side tunnel, all traffic option """
     # allowedIPs = Column(String(255), nullable=True)
     friendly_name = Column(String(255), nullable=True)
