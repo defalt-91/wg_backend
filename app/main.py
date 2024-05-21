@@ -19,9 +19,10 @@ from app.core.Settings import get_settings
 from app.crud.crud_wgserver import crud_wg_interface
 from app.db.session import SessionFactory
 
-logging.basicConfig(level=logging.NOTSET)
-logger = logging.getLogger(__name__)
 settings = get_settings()
+
+logging.basicConfig(level=settings.LOG_LEVEL)
+logger = logging.getLogger(__name__)
 
 
 @contextlib.asynccontextmanager
@@ -29,13 +30,17 @@ async def wg_quick_lifespan(application: FastAPI) -> AsyncIterator[State]:
     logger.info("creating wireguard interface with loaded config from db ...")
     db = SessionFactory()
     try:
-        std_return_code = subprocess.run(["wg", "show", settings.WG_INTERFACE],capture_output=False, stdout=subprocess.PIPE).returncode
-        if std_return_code != 0:
-            logger.debug(f"there is a wireguard interface with name of {settings.WG_INTERFACE}, trying to down it ... ")
-            subprocess.run(["wg-quick", "down", settings.WG_INTERFACE])
-            logger.warning("downed it")
-        subprocess.run(["wg-quick", "up", settings.wgserver_file_path])
-        # logger.info("loading peers file config (wg addconf) to wg service ...")
+        # std = subprocess.run(["wg", "show", settings.WG_INTERFACE], capture_output=True)
+        # if std.stderr and 'Operation not permittesd' in std.stderr.decode().strip():
+        #     raise PermissionError('You should run this app with root privileges')
+        # elif std.stderr and 'interface:' in std.stdout.decode().strip():
+        #     logger.warning(f"there is a wireguard interface with name of {settings.WG_INTERFACE}, trying to down it ...")
+        #     subprocess.run(["wg-quick", "down", settings.wg_if_file_path])
+        #     logger.warning("downed it")
+        # elif std.stderr and 'No such device' not in std.stderr.decode().strip():
+        #     raise RuntimeError(std.stderr.decode().strip())
+        subprocess.run(["wg-quick", "up", settings.wg_if_file_path])
+        logger.debug("loading peers file config (wg addconf) to wg service ...")
         crud_wg_interface.sync_db_peers_to_wg(db)
     except pyroute2.NetlinkError as err:
         raise Exception(
@@ -45,8 +50,8 @@ async def wg_quick_lifespan(application: FastAPI) -> AsyncIterator[State]:
     finally:
         db.close()
     yield
-    # subprocess.run(["wg-quick", "save", settings.WG_INTERFACE])
-    subprocess.run(["wg-quick", "down", settings.WG_INTERFACE])
+    subprocess.run(["wg-quick", "save", settings.wg_if_file_path])
+    subprocess.run(["wg-quick", "down", settings.wg_if_file_path])
 
 
 app = FastAPI(

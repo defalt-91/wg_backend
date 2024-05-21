@@ -15,7 +15,7 @@ from app.models.peer import Peer
 from app.schemas.Peer import PeerUpdate, PeerCreate
 from app.api import exceptions
 settings = get_settings()
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=settings.LOG_LEVEL)
 
 
 class CRUDPeer(CRUDBase[Peer, PeerCreate, PeerUpdate]):

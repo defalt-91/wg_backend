@@ -1,16 +1,18 @@
-from app.crud.crud_wgserver import crud_wg_interface
-from app.db.session import SessionFactory
-from sqlalchemy.orm import Session
-from app.crud.crud_user_fn import authenticate,create_user
-from app.core.Settings import get_settings
-from app.schemas import UserCreate
-from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
-from app.schemas.wg_interface import WGInterfaceCreate
 import logging
 
-logging.basicConfig(level=logging.NOTSET)
-logger = logging.getLogger(__name__)
+from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
+
+from app.core.Settings import get_settings
+from app.crud.crud_user_fn import authenticate, create_user
+from app.crud.crud_wgserver import crud_wg_interface
+from app.db.session import SessionFactory
+from app.schemas import UserCreate
+from app.schemas.wg_interface import WGInterfaceCreate
+
 settings = get_settings()
+logging.basicConfig(level=settings.LOG_LEVEL)
+logger = logging.getLogger(__name__)
 
 
 def init_db(db: Session) -> None:
@@ -49,14 +51,14 @@ def init_db(db: Session) -> None:
         logger.debug("there are multiple interfaces in database, loading last one ...")
         orm_wg_server = crud_wg_interface.get_multi(db=db).pop()
     except Exception as e:
-        logger.critical('there is a problem loading interface configs from db',e)
+        logger.critical('there is a problem loading interface configs from db', e)
     finally:
-        logger.debug(f"writing interface config to {settings.wgserver_file_path}")
-        result = crud_wg_interface.create_wg_quick_config_file(orm_server=orm_wg_server)
+        logger.debug(f"writing interface config to {settings.wg_if_file_path}")
+        crud_wg_interface.create_wg_quick_config_file(orm_server=orm_wg_server)
         logger.debug(f"writing down wireguard db interface with id={orm_wg_server.id} completed.")
 
 
-if __name__ == "__main__":
+if __name__=="__main__":
     logger.info("Creating initial data")
     with SessionFactory() as session:
         init_db(session)

@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta, UTC
-from typing import Any, Union
 
 from jose import jwt
 from passlib.context import CryptContext
+
 from .Settings import get_settings
 
 settings = get_settings()
@@ -11,7 +11,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def create_access_token(
-        data: dict[str, str|datetime],
+        data: dict[str, str | datetime],
         expires_delta: timedelta = None,
 ) -> str:
     to_encode = data.copy()

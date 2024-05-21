@@ -22,21 +22,115 @@ from gunicorn.config import (
 from app.core.Settings import get_settings
 
 settings = get_settings()
-workers_per_core_str = settings.WORKERS_PER_CORE
-max_workers_str = settings.MAX_WORKERS
-use_max_workers = None
-if max_workers_str:
-    use_max_workers = int(max_workers_str)
-web_concurrency_str = settings.WEB_CONCURRENCY
 
-use_bind = f"{settings.BACKEND_SERVER_HOST}:{settings.BACKEND_SERVER_PORT}"
+""" Debugging """
+check_config = False
+print_config = False
+spew = False
 
+""" Logging """
+loglevel = settings.LOG_LEVEL
+logger_class = "gunicorn.glogging.Logger"
+accesslog = settings.ACCESS_LOG if not settings.DEBUG else '-'
+disable_redirect_access_to_syslog = False
+access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"'
+errorlog = settings.ERROR_LOG if not settings.DEBUG else '-'
+capture_output = True
+logconfig = None
+logconfig_dict = {}
+# logconfig_json = None
+# syslog_addr= unix://localhost:514
+syslog_prefix = "Backend==>"
+# syslog_facility = 'user
+# syslog = False
+# enable_stdio_inheritance = False
+# statsd_host = "host:port"
+# dogstatsd_tags = ""
+# statsd_prefix = ""
+
+""" Process Naming """
+default_proc_name = 'gunicorn'
+proc_name = default_proc_name if settings.DEBUG else f"{default_proc_name}_debug"
+
+wsgi_app = "app.main:app"
+
+""" SSL """
+# keyfile="/app/gunicorn/cert/localhost.decrypted.key"
+# certfile="/app/gunicorn/cert/localhost.crt"
+# ssl_version = 2
+# cert_reqs = 0
+# ca_certs = None
+# suppress_ragged_eofs = True
+# do_handshake_on_connect = True
+# ciphers = None
+
+""" Security """
+limit_request_line = 4094
+limit_request_fields = 100
+limit_request_field_size = 8190
+
+""" Server Mechanics """
+reload = settings.DEBUG
+reload_engine = 'auto'
+reload_extra_files = []
+preload_app = not settings.DEBUG
+# sendfile= None
+reuse_port = False
+# chdir = str(BASE_DIR)
+# daemon = True
+# raw_env = [
+#     # f'DJANGO_SECRET_KEY={}',
+#     # 'SPAM=eggs',
+# ]
+pidfile = str(Path(__name__).resolve().parent / "logs/gunicorn/pid")
+# user = "defalt" if settings.DEBUG else 'gunicorn'
+# group = "defalt" if settings.DEBUG else 'gunicorn'
+# umask = 0
+# initgroups = False
+worker_tmp_dir = str(settings.BASE_DIR / "logs/gunicorn/")
+tmp_upload_dir = str(settings.BASE_DIR) if settings.DEBUG else '/tmp/gunicorn'
+secure_scheme_headers = {
+    'X-FORWARDED-PROTOCOL': 'ssl',
+    'X-FORWARDED-PROTO': 'https',
+    'X-FORWARDED-SSL': 'on',
+}
+forwarded_allow_ips = '127.0.0.1'
+# pythonpath = None
+# paste = None
+proxy_protocol = False
+proxy_allow_ips = '127.0.0.1'
+# raw_paste_global_conf=[]
+# strip_header_spaces = False
+# permit_unconventional_http_method = False
+# permit_unconventional_http_version = False
+# casefold_http_method = False
+# header_map = 'drop'
+# tolerate_dangerous_framing
+
+""" Server Socket """
+PORT = settings.BACKEND_SERVER_PORT
+HOST = settings.BACKEND_SERVER_HOST
+bind = f"{HOST}:{PORT}" if settings.DEBUG else "unix:/run/gunicorn.sock"
+backlog = 2048
+
+#   backlog - The number of pending connections. This refers
+#       to the number of clients that can be waiting to be
+#       served. Exceeding this number results in the client
+#       getting an error when attempting to connect. It should
+#       only affect servers under significant load.
+#
+#       Must be a positive integer. Generally set in the 64-2048
+#       range.
+#
+
+""" Worker processes """
 cores = multiprocessing.cpu_count()
-workers_per_core = float(workers_per_core_str)
+workers_per_core = float(settings.WORKERS_PER_CORE)
 default_web_concurrency = workers_per_core * cores + 1
 
-if web_concurrency_str:
-    web_concurrency = int(web_concurrency_str)
+use_max_workers = settings.MAX_WORKERS if settings.MAX_WORKERS else None
+if settings.WEB_CONCURRENCY:
+    web_concurrency = settings.WEB_CONCURRENCY
     assert web_concurrency > 0
 else:
     web_concurrency = max(int(default_web_concurrency), 2)
@@ -45,159 +139,87 @@ else:
 if settings.DEBUG:
     web_concurrency = 1
 
-graceful_timeout_str = settings.GRACEFUL_TIMEOUT
-timeout_str = settings.TIMEOUT
-keepalive_str = settings.KEEP_ALIVE
-
-""" process naming """
-proc_name = "gunicorn"
-default_proc_name = "gunicorn"
-
-""" security """
-limit_request_line = 4094
-limit_request_field_size = 8190
-limit_request_fields = 100
-
-""" ssl """
-# keyfile = None
-# certfile = None
-# ssl_version = 2
-# cert_reqs = 0
-# ca_certs = None
-# suppress_ragged_eofs = True
-do_handshake_on_connect = True
-ciphers = None
-
-"""     Server Socket       """
-bind = use_bind
-# backlog = 2048
-# backlog = 2048
-
-"""     Worker Processes    """
-workers = web_concurrency
-worker_class = "uvicorn.workers.UvicornWorker"
+worker_class = 'uvicorn.workers.UvicornH11Worker'
 worker_connections = 1000  # The maximum number of simultaneous clients.
 threads = 2  # Run each worker with the specified number of threads.
 max_requests = (
     0  # The maximum number of requests a worker will process before restarting
 )
-max_requests_jitter = 0
-timeout = int(
-    timeout_str
-)  # Workers silent for more than this many seconds are killed and restarted.
-graceful_timeout = int(graceful_timeout_str)
-keepalive = int(keepalive_str)
-
-"""     Server Mechanics    """
-preload_app = True
-sendfile = None
-reuse_port = False
-# chdir = '/app/'
-daemon = False
-# raw_env = ["FOO=1"]
-# user = 1000
-# group = 1000
-initgroups = False
-umask = 0
-worker_tmp_dir = str(Path(__name__).resolve().parent / "logs/gunicorn/")
-
-pidfile = str(
-    Path(__name__).resolve().parent / "logs/gunicorn/pid"
-)  # A filename to use for the PID file.
-tmp_upload_dir = None
-# secure_scheme_headers = {'X-FORWARDED-PROTOCOL': 'ssl', 'X-FORWARDED-PROTO': 'https', 'X-FORWARDED-SSL': 'on'}
-secure_scheme_headers = {
-    "X-FORWARDED-PROTOCOL": "ssl",
-    "X-FORWARDED-PROTO": "https",
-    "X-FORWARDED-SSL": "on",
-}
-# forwarded_allow_ips               = ['127.0.0.1']
-# paste = None
-# pythonpath = None
-proxy_protocol = False
-# proxy_allow_ips = "['127.0.0.1','*']"
-# raw_paste_global_conf = []
-strip_header_spaces = False
-
-""" log """
-if settings.DEBUG:
-    accesslog = "-"  # Using '-' for FILE makes gunicorn log to stderr.
-    errorlog = "-"
-else:
-    accesslog = settings.ACCESS_LOG
-    errorlog = settings.ERROR_LOG
-# access_log_format = "{'remote_ip':'%(h)s','request_id':'%({X-Request-Id}i)s','response_code':'%(s)s','request_method':'%(m)s','request_path':'%(U)s','request_querystring':'%(q)s','request_timetaken':'%(D)s','response_length':'%(B)s'}"
-# access_log_format                 = %(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"
-
-disable_redirect_access_to_syslog = False
-
-capture_output = True
-logger_class = "gunicorn.glogging.Logger"
-logconfig = None
-logconfig_dict = {}
-# syslog_addr                       = unix://localhost:514
-# syslog_facility                   = "user"
-# syslog_prefix = "Backend"
-syslog = False
-enable_stdio_inheritance = False
-# statsd_host = "host:port"
-dogstatsd_tags = ""
-statsd_prefix = ""
-
-""" Gunicorn config variables """
-wsgi_app = "app.main:app"
-if settings.DEBUG:
-    reload = True
-    reload_engine = "auto"
-    reload_extra_files = []
-# user = "gunicorn_user"  # must exist
-check_config = False
-print_config = False
-spew = False
+# max_requests_jitter = 1
+# Workers silent for more than this many seconds are killed and restarted.
+timeout = settings.TIMEOUT
+graceful_timeout = settings.GRACEFUL_TIMEOUT
+keepalive = settings.KEEP_ALIVE
 
 """  server hooks  """
 
 
 def on_starting(server):
     OnStarting.on_starting(server)
+    server.log.info("Worker starting (pid: %s)")
+    server.log.info(f"===> current user is  {os.system('echo whoami')}")
 
 
 def on_reload(server):
     OnReload.on_reload(server)
+    # server.log.info("Worker reloading ...")
 
 
 def when_ready(server):
     WhenReady.when_ready(server)
+    # server.log.info("Server is ready. Spawning workers")
 
 
 def pre_fork(server, worker):
     Prefork.pre_fork(server=server, worker=worker)
 
 
+#     server.log.info("Worker removed (pid: %s)", worker.pid)
+
 def post_fork(server, worker):
     Postfork.post_fork(server, worker)
+    # server.log.info("Worker spawned (pid: %s)", worker.pid)
 
 
 def post_worker_init(worker):
     PostWorkerInit.post_worker_init(worker)
 
 
+#     worker.log.info("post_worker_init ... ")
+
 def worker_int(worker):
     #  for reload to work in development
     os.system(f"kill -HUP {worker.pid}")
     WorkerInt.worker_int(worker)
+    worker.log.info("worker received INT or QUIT signal")
+
+    ## get traceback info
+    import threading, sys, traceback
+    id2name = {th.ident: th.name for th in threading.enumerate()}
+    code = []
+    for threadId, stack in sys._current_frames().items():
+        code.append("\n# Thread: %s(%d)" % (id2name.get(threadId, ""), threadId))
+        for filename, lineno, name, line in traceback.extract_stack(stack):
+            code.append('File: "%s", line %d, in %s' % (filename, lineno, name))
+            if line:
+                code.append("  %s" % (line.strip()))
+    worker.log.debug("\n".join(code))
 
 
 def worker_abort(worker):
     WorkerAbort.worker_abort(worker=worker)
+    # worker.log.info("worker received SIGABRT signal")
 
 
 def pre_exec(server):
     PreExec.pre_exec(server)
 
 
+#     server.log.info("Forked child, re-executing.")
+
 def pre_request(worker, req):
     worker.log.debug("%s %s" % (req.method, req.path))
+    # worker.log.debug("%s %s", req.method, req.path)
 
 
 def post_request(worker, req, environ, resp):
@@ -206,11 +228,14 @@ def post_request(worker, req, environ, resp):
 
 def child_exit(server, worker):
     ChildExit.child_exit(server, worker)
+    # worker.log.debug("%s %s", )
 
 
 def worker_exit(server, worker):
     WorkerExit.worker_exit(server, worker)
 
+
+#     worker.log.debug('worker exits')
 
 def nworkers_changed(server, new_value, old_value):
     NumWorkersChanged.nworkers_changed(server, new_value, old_value)
@@ -218,20 +243,117 @@ def nworkers_changed(server, new_value, old_value):
 
 def on_exit(server):
     OnExit.on_exit(server)
+    # server.log.info('on_exit')
 
-# # For debugging and testing
-# log_data = {
-# 	"loglevel": settings.LOG_LEVEL,
-# 	"workers": workers,
-# 	"bind"            : use_bind,
-# 	"graceful_timeout": graceful_timeout,
-# 	"timeout": timeout,
-# 	"keepalive": keepalive,
-# 	"errorlog": errorlog,
-# 	"accesslog": accesslog,
-# 	# Additional, non-gunicorn variables
-# 	"workers_per_core": workers_per_core,
-# 	"use_max_workers": use_max_workers,
-# 	"wsgi_app": wsgi_app
-# }
-# print(json.dumps(log_data))
+
+def ssl_context(conf, default_ssl_context_factory):
+    import ssl
+    context = default_ssl_context_factory()
+    context.minimum_version = ssl.TLSVersion.TLSv1_3
+    return context
+
+
+# Worker processes
+#
+#   workers - The number of worker processes that this server
+#       should keep alive for handling requests.
+#
+#       A positive integer generally in the 2-4 x $(NUM_CORES)
+#       range. You'll want to vary this a bit to find the best
+#       for your particular application's work load.
+#
+#   worker_class - The type of workers to use. The default
+#       sync class should handle most 'normal' types of work
+#       loads. You'll want to read
+#       http://docs.gunicorn.org/en/latest/design.html#choosing-a-worker-type
+#       for information on when you might want to choose one
+#       of the other worker classes.
+#
+#       A string referring to a Python path to a subclass of
+#       gunicorn.workers.base.Worker. The default provided values
+#       can be seen at
+#       http://docs.gunicorn.org/en/latest/settings.html#worker-class
+#
+#   worker_connections - For the eventlet and gevent worker classes
+#       this limits the maximum number of simultaneous clients that
+#       a single process can handle.
+#
+#       A positive integer generally set to around 1000.
+#
+#   timeout - If a worker does not notify the master process in this
+#       number of seconds it is killed and a new worker is spawned
+#       to replace it.
+#
+#       Generally set to thirty seconds. Only set this noticeably
+#       higher if you're sure of the repercussions for sync workers.
+#       For the non sync workers it just means that the worker
+#       process is still communicating and is not tied to the length
+#       of time required to handle a single request.
+#
+#   keepalive - The number of seconds to wait for the next request
+#       on a Keep-Alive HTTP connection.
+#
+#       A positive integer. Generally set in the 1-5 seconds range.
+#   spew - Install a trace function that spews every line of Python
+#       that is executed when running the server. This is the
+#       nuclear option.
+#
+#       True or False
+#
+
+# Server mechanics
+#
+#   daemon - Detach the main Gunicorn process from the controlling
+#       terminal with a standard fork/fork sequence.
+#
+#       True or False
+#
+#   raw_env - Pass environment variables to the execution environment.
+#
+#   pidfile - The path to a pid file to write
+#
+#       A path string or None to not write a pid file.
+#
+#   user - Switch worker processes to run as this user.
+#
+#       A valid user id (as an integer) or the name of a user that
+#       can be retrieved with a call to pwd.getpwnam(value) or None
+#       to not change the worker process user.
+#
+#   group - Switch worker process to run as this group.
+#
+#       A valid group id (as an integer) or the name of a user that
+#       can be retrieved with a call to pwd.getgrnam(value) or None
+#       to change the worker processes group.
+#
+#   umask - A mask for file permissions written by Gunicorn. Note that
+#       this affects unix socket permissions.
+#
+#       A valid value for the os.umask(mode) call or a string
+#       compatible with int(value, 0) (0 means Python guesses
+#       the base, so values like "0", "0xFF", "0022" are valid
+#       for decimal, hex, and octal representations)
+#
+#   tmp_upload_dir - A directory to store temporary request data when
+#       requests are read. This will most likely be disappearing soon.
+#
+#       A path to a directory where the process owner can write. Or
+#       None to signal that Python should choose one on its own.
+#
+
+# Server hooks
+#
+#   post_fork - Called just after a worker has been forked.
+#
+#       A callable that takes a server and worker instance
+#       as arguments.
+#
+#   pre_fork - Called just prior to forking the worker subprocess.
+#
+#       A callable that accepts the same arguments as after_fork
+#
+#   pre_exec - Called just prior to forking off a secondary
+#       master process during things like config reloading.
+#
+#       A callable that takes a server instance as the sole argument.
+#
