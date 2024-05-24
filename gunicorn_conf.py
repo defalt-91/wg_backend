@@ -1,8 +1,6 @@
 import multiprocessing
 import os
-from pathlib import Path
 
-from wg_backend.core.configs.Settings import get_settings
 from gunicorn.config import (
     ChildExit,
     NumWorkersChanged,
@@ -20,23 +18,25 @@ from gunicorn.config import (
     WorkerInt,
 )
 
-settings = get_settings()
+from wg_backend.core.settings import get_settings
+
+config = get_settings()
 
 """ Debugging """
 check_config = False
-print_config = False
+print_config = True
 spew = False
 
 """ Logging """
-loglevel = settings.LOG_LEVEL
+loglevel = config.LOG_LEVEL
 logger_class = "gunicorn.glogging.Logger"
-accesslog = settings.ACCESS_LOG
+accesslog = config.gunicorn_access_log_path
 disable_redirect_access_to_syslog = False
 access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"'
-errorlog = settings.ERROR_LOG
+errorlog = config.gunicorn_error_log_path
 capture_output = True
 logconfig = None
-logconfig_dict = { }
+logconfig_dict = {}
 # logconfig_json = None
 # syslog_addr= unix://localhost:514
 syslog_prefix = "Backend==>"
@@ -48,8 +48,7 @@ syslog_prefix = "Backend==>"
 # statsd_prefix = ""
 
 """ Process Naming """
-default_proc_name = 'gunicorn'
-proc_name = default_proc_name if settings.DEBUG else f"{default_proc_name}_debug"
+proc_name = config.GUNICORN_PROC_NAME
 
 wsgi_app = "wg_backend.main:wg_backend"
 
@@ -69,24 +68,21 @@ limit_request_fields = 100
 limit_request_field_size = 8190
 
 """ Server Mechanics """
-reload = settings.DEBUG
-reload_engine = 'auto'
-reload_extra_files = []
-preload_app = not settings.DEBUG
-# sendfile= None
+pidfile = config.gunicorn_pid_file
+worker_tmp_dir = str(config.TMP_DIR / "gunicorn")
+tmp_upload_dir = str(config.TMP_DIR / "gunicorn")
+user = config.APP_USER
+group = config.APP_GROUP
+umask = config.APP_UMASK
+preload_app = not config.DEBUG
 reuse_port = False
+# sendfile= None
 # chdir = str(BASE_DIR)
 # daemon = True
 # raw_env = [
 #     # 'SPAM=eggs',
 # ]
-pidfile = str(Path(__name__).resolve().parent / "logs/gunicorn/pid")
-user = settings.APP_USER
-# group = settings.APP_GROUP
-# umask = os.umask(77)
 # initgroups = False
-worker_tmp_dir = str(settings.BASE_DIR / "logs/gunicorn/")
-tmp_upload_dir = str(settings.BASE_DIR) if settings.DEBUG else '/tmp/gunicorn'
 secure_scheme_headers = {
     'X-FORWARDED-PROTOCOL': 'ssl',
     'X-FORWARDED-PROTO': 'https',
@@ -104,11 +100,12 @@ proxy_allow_ips = '127.0.0.1'
 # casefold_http_method = False
 # header_map = 'drop'
 # tolerate_dangerous_framing
+reload = config.DEBUG or config.STAGE
+reload_engine = 'auto'
+reload_extra_files = []
 
 """ Server Socket """
-PORT = settings.BACKEND_SERVER_PORT
-HOST = settings.BACKEND_SERVER_HOST
-bind = f"{HOST}:{PORT}" if settings.DEBUG else f"unix:/tmp/gunicorn.sock"
+bind = config.GUNICORN_BIND
 backlog = 2048
 
 #   backlog - The number of pending connections. This refers
@@ -123,18 +120,18 @@ backlog = 2048
 
 """ Worker processes """
 cores = multiprocessing.cpu_count()
-workers_per_core = float(settings.WORKERS_PER_CORE)
+workers_per_core = float(config.WORKERS_PER_CORE)
 default_web_concurrency = workers_per_core * cores + 1
 
-use_max_workers = settings.MAX_WORKERS if settings.MAX_WORKERS else None
-if settings.WEB_CONCURRENCY:
-    web_concurrency = settings.WEB_CONCURRENCY
+use_max_workers = config.MAX_WORKERS if config.MAX_WORKERS else None
+if config.WEB_CONCURRENCY:
+    web_concurrency = config.WEB_CONCURRENCY
     assert web_concurrency > 0
 else:
     web_concurrency = max(int(default_web_concurrency), 2)
     if use_max_workers:
         web_concurrency = min(web_concurrency, use_max_workers)
-if settings.DEBUG:
+if config.DEBUG:
     web_concurrency = 1
 
 worker_class = 'uvicorn.workers.UvicornH11Worker'
@@ -145,9 +142,9 @@ max_requests = (
 )
 # max_requests_jitter = 1
 # Workers silent for more than this many seconds are killed and restarted.
-timeout = settings.TIMEOUT
-graceful_timeout = settings.GRACEFUL_TIMEOUT
-keepalive = settings.KEEP_ALIVE
+timeout = config.TIMEOUT
+graceful_timeout = config.GRACEFUL_TIMEOUT
+keepalive = config.KEEP_ALIVE
 
 """  server hooks  """
 
@@ -193,7 +190,7 @@ def worker_int(worker):
 
     ## get traceback info
     import threading, sys, traceback
-    id2name = { th.ident: th.name for th in threading.enumerate() }
+    id2name = {th.ident: th.name for th in threading.enumerate()}
     code = []
     for threadId, stack in sys._current_frames().items():
         code.append("\n# Thread: %s(%d)" % (id2name.get(threadId, ""), threadId))
@@ -270,7 +267,7 @@ def ssl_context(conf, default_ssl_context_factory):
 #       A string referring to a Python path to a subclass of
 #       gunicorn.workers.base.Worker. The default provided values
 #       can be seen at
-#       http://docs.gunicorn.org/en/latest/settings.html#worker-class
+#       http://docs.gunicorn.org/en/latest/config.html#worker-class
 #
 #   worker_connections - For the eventlet and gevent worker classes
 #       this limits the maximum number of simultaneous clients that

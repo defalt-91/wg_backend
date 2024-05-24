@@ -6,11 +6,12 @@ from pathlib import Path
 from typing import Any, Callable
 
 import emails  # type: ignore
-from wg_backend.core.configs.Settings import get_settings
 from fastapi import Request, Response
 from fastapi.routing import APIRoute
 from jinja2 import Template
 from jose import jwt
+
+from wg_backend.core.settings import get_settings
 
 settings = get_settings()
 
@@ -57,7 +58,7 @@ def send_email(
         html = html_content,
         mail_from = (settings.EMAILS_FROM_NAME, settings.EMAILS_FROM_EMAIL),
     )
-    smtp_options = { "host": settings.SMTP_HOST, "port": settings.SMTP_PORT }
+    smtp_options = {"host": settings.SMTP_HOST, "port": settings.SMTP_PORT}
     if settings.SMTP_TLS:
         smtp_options["tls"] = True
     elif settings.SMTP_SSL:
@@ -75,7 +76,7 @@ def generate_test_email(email_to: str) -> EmailData:
     subject = f"{project_name} - Test email"
     html_content = render_email_template(
         template_name = "test_email.html",
-        context = { "project_name": settings.PROJECT_NAME, "email": email_to },
+        context = {"project_name": settings.PROJECT_NAME, "email": email_to},
     )
     return EmailData(html_content = html_content, subject = subject)
 
@@ -122,7 +123,7 @@ def generate_password_reset_token(email: str) -> str:
     exp = expires.timestamp()
     encoded_jwt = jwt.encode(
         key = settings.SECRET_KEY,
-        claims = { "exp": exp, "nbf": now, "sub": email },
+        claims = {"exp": exp, "nbf": now, "sub": email},
         algorithm = settings.ALGORITHM,
     )
     return encoded_jwt

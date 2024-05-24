@@ -1,24 +1,24 @@
-from sqlalchemy.orm import registry, declarative_mixin, declared_attr
 from sqlalchemy import Column, func
-from sqlalchemy.sql.sqltypes import DateTime, Integer, TIMESTAMP
 from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.orm import declarative_mixin, declared_attr, registry
 from sqlalchemy.sql import expression
+from sqlalchemy.sql.sqltypes import DateTime, Integer, TIMESTAMP
 
 
 mapper_registry = registry()
 
 
-class utcnow(expression.FunctionElement):
+class UtcNow(expression.FunctionElement):
     type = DateTime()
     inherit_cache = True
 
 
-@compiles(utcnow, "postgresql")
+@compiles(UtcNow, "postgresql")
 def pg_utcnow(element, compiler, **kw):
     return "TIMEZONE('utc', CURRENT_TIMESTAMP)"
 
 
-@compiles(utcnow, "mssql")
+@compiles(UtcNow, "mssql")
 def ms_utcnow(element, compiler, **kw):
     return "GETUTCDATE()"
 
@@ -26,20 +26,20 @@ def ms_utcnow(element, compiler, **kw):
 @declarative_mixin
 class DateMixin:
     created_at = Column(
-        TIMESTAMP(timezone=True),
-        default=None,
-        server_default=func.now(),
-        index=True,
-        nullable=False,
-        doc="Time of creation",
+        TIMESTAMP(timezone = True),
+        default = None,
+        server_default = func.now(),
+        index = True,
+        nullable = False,
+        doc = "Time of creation",
     )
     updated_at = Column(
-        TIMESTAMP(timezone=True),
-        default=None,
-        onupdate=func.now(),
-        index=True,
-        nullable=True,
-        doc="Time of last update",
+        TIMESTAMP(timezone = True),
+        default = None,
+        onupdate = func.now(),
+        index = True,
+        nullable = True,
+        doc = "Time of last update",
     )
 
 
@@ -47,11 +47,11 @@ class DateMixin:
 class NameMixin:
     id = Column(
         Integer,
-        primary_key=True,
-        index=True,
-        nullable=False,
-        autoincrement=True,
-        unique=True,
+        primary_key = True,
+        index = True,
+        nullable = False,
+        autoincrement = True,
+        unique = True,
     )
 
     @declared_attr

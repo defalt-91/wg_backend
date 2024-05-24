@@ -1,13 +1,11 @@
 import datetime
 import uuid
-from subprocess import PIPE
-from subprocess import Popen
+from subprocess import PIPE, Popen
 from typing import Self
 
 from pydantic import BaseModel, Field, model_validator
 
-from wg_backend.core.security import get_settings
-from wg_backend.core.configs.Settings import execute
+from wg_backend.core.settings import execute, get_settings
 from wg_backend.models import WGInterface
 
 settings = get_settings()

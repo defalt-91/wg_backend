@@ -3,12 +3,11 @@ import logging
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
-from wg_backend.core.configs.Settings import get_settings
+from wg_backend.core.settings import get_settings
 from wg_backend.crud.crud_user_fn import authenticate, create_user
 from wg_backend.crud.crud_wgserver import crud_wg_interface
 from wg_backend.db.session import SessionFactory
-from wg_backend.schemas import UserCreate
-from wg_backend.schemas.wg_interface import WGInterfaceCreate
+from wg_backend.schemas import UserCreate,WGInterfaceCreate
 
 settings = get_settings()
 logging.basicConfig(level = settings.LOG_LEVEL)

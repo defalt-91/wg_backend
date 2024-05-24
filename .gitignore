@@ -1,6 +1,5 @@
-### Example user template template
-### Example user template
 .prettierrc
+tmp/
 env.ini
 .env
 wg_config

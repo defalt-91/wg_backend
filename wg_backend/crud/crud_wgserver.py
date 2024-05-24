@@ -7,14 +7,17 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from wg_backend.api import exceptions
-from wg_backend.core.configs.Settings import get_settings
-from wg_backend.core.configs.Settings import execute
+from wg_backend.core.settings import execute, get_settings
 from wg_backend.crud.base import CRUDBase
-from wg_backend.models.peer import Peer
-from wg_backend.models.wg_interface import WGInterface
-from wg_backend.schemas.Peer import DBPlusStdoutPeer, DbDataPeer, StdoutDumpPeer, StdoutRxTxPlusLhaPeer
-from wg_backend.schemas.wg_interface import WGInterfaceCreate
-from wg_backend.schemas.wg_interface import WGInterfaceUpdate
+from wg_backend.models import Peer, WGInterface
+from wg_backend.schemas import (
+    DBPlusStdoutPeer,
+    DbDataPeer,
+    StdoutDumpPeer,
+    StdoutRxTxPlusLhaPeer,
+    WGInterfaceCreate,
+    WGInterfaceUpdate
+)
 
 settings = get_settings()
 logging.basicConfig(level = settings.LOG_LEVEL)
@@ -118,7 +121,7 @@ class CRUDWGInterface(CRUDBase[WGInterface, WGInterfaceCreate, WGInterfaceUpdate
         return peers_rxtx_lha
 
     @staticmethod
-    def get_full_config(session: Session)-> dict[str, DBPlusStdoutPeer]:
+    def get_full_config(session: Session) -> dict[str, DBPlusStdoutPeer]:
         full_config: dict[str, DBPlusStdoutPeer] = dict()
         cmd = ["sudo", "wg", "show", settings.WG_INTERFACE_NAME, "dump"]
         proc = execute(cmd)

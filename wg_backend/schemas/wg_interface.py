@@ -1,9 +1,6 @@
-
-
 from pydantic import BaseModel, model_validator
 
-from wg_backend.core.configs.Settings import execute
-from wg_backend.core.configs.Settings import get_settings
+from wg_backend.core.settings import execute, get_settings
 
 
 settings = get_settings()
@@ -21,12 +18,12 @@ class WGInterface(BaseModel):
 class WGInterfaceCreate(WGInterface):
     interface: str
 
-    @model_validator(mode="after")
+    @model_validator(mode = "after")
     def create_server(self):
         private_key = execute(["wg", "genkey"])
         public_key = execute(
             ["wg", "pubkey"],
-            input_value=private_key.stdout,
+            input_value = private_key.stdout,
         )
         if not self.address:
             self.address = settings.WG_DEFAULT_ADDRESS.replace("x", "1")

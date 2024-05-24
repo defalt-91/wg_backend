@@ -1,21 +1,17 @@
-
 import logging
-
-
-from wg_backend.api.api_v1.api import v1_api_router
-from wg_backend.core.configs.Settings import get_settings
 
 from fastapi import FastAPI
 from starlette.middleware import cors, trustedhost  # gzip,; sessions,; authentication
 
-from wg_backend.middlewares.wgstartup import wg_quick_lifespan
+from wg_backend.api.api_v1.api import v1_api_router
+from wg_backend.core.settings import get_settings
+from wg_backend.middlewares import wg_quick_lifespan
 
 
 settings = get_settings()
 
 logging.basicConfig(level = settings.LOG_LEVEL)
 logger = logging.getLogger(__name__)
-
 
 app = FastAPI(
     debug = settings.DEBUG,
@@ -28,7 +24,6 @@ app = FastAPI(
     lifespan = wg_quick_lifespan,
     # root_path="/api/v1"  # for behind proxy
 )
-
 
 # wg_backend.add_middleware(
 #     ExtraResponseHeadersMiddleware,
@@ -47,12 +42,10 @@ app.add_middleware(
     allow_headers = ["X-Response-Time", "*"],
 )
 
-
 app.add_middleware(
     trustedhost.TrustedHostMiddleware,
     allowed_hosts = settings.BACKEND_ALLOWED_HOSTS
 )
-
 
 app.include_router(v1_api_router)
 

@@ -1,6 +1,5 @@
 import pydantic.class_validators as py_validators
-from pydantic import BaseModel, EmailStr
-from pydantic import model_validator
+from pydantic import BaseModel, EmailStr, model_validator
 
 
 # Shared properties
@@ -27,18 +26,20 @@ class UserCreate(UserBase):
     password: str
     scope: str | None = None
 
-    @model_validator(mode="after")
+    @model_validator(mode = "after")
     def username_validator(self):
         if not self.scope:
             self.scope = "me"
         return self
 
 
-class UserUpdate(UserBase):
+class UserUpdate(BaseModel):
+    username: str | None = None
     password: str | None = None
     client_id: str | None = None
     client_secret: str | None = None
-    scope: str | None = None
+    # scope: str | None = None
+    email: EmailStr | None = None
 
 
 class UserInDBBase(UserBase):

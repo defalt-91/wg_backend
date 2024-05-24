@@ -1,21 +1,23 @@
 from typing import Any, List
 
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Depends, Form
 from fastapi.encoders import jsonable_encoder
+from pydantic import EmailStr
 
-from wg_backend.api import deps, exceptions
-from wg_backend.api.deps import get_current_active_user, CurrentUser
-from wg_backend.crud.crud_user_fn import get_user_by_username, create_user, update_user, get_user_by_email
-from wg_backend.db.session import SessionDep
+from wg_backend.api import (CurrentUser, exceptions, get_current_active_superuser,
+                            get_current_active_user)
+from wg_backend.crud.crud_user_fn import (create_user, get_user_by_client_id, get_user_by_email, get_user_by_username,
+                                          update_user)
+from wg_backend.db import SessionDep
 from wg_backend.models import User
-from wg_backend.schemas.user import UserOut, UserCreate, UserUpdate
+from wg_backend.schemas import UserCreate, UserOut, UserUpdate
 
-router = APIRouter()
+user_router = APIRouter()
 
 
-@router.get("/", response_model=List[UserOut], dependencies=[Depends(deps.get_current_active_superuser)])
+@user_router.get("/", response_model = List[UserOut], dependencies = [Depends(get_current_active_superuser)])
 async def read_users_api(
-        db: SessionDep,
+        session: SessionDep,
         skip: int = 0,
         limit: int = 100,
         # current_user: CurrentUser,
@@ -23,19 +25,19 @@ async def read_users_api(
     """
     Retrieve users.
     """
-    object_list = db.query(User).offset(skip).limit(limit).all()
+    object_list = session.query(User).offset(skip).limit(limit).all()
     if not object_list:
         raise exceptions.peer_not_found()
     return object_list
 
 
-@router.post(
+@user_router.post(
     "/",
-    response_model=UserOut,
-    dependencies=[Depends(get_current_active_user)],
-    summary="Create new user",
-    name="Peer Creator",
-    openapi_extra={
+    response_model = UserOut,
+    dependencies = [Depends(get_current_active_user)],
+    summary = "Create new user",
+    name = "Peer Creator",
+    openapi_extra = {
         "x-aperture-labs-portal": "blue",
         "requestBody": {
             "content": {"application/x-yaml": {"schema": UserCreate.model_json_schema()}},
@@ -57,42 +59,55 @@ async def create_user_end(
     - **scopes**: user permissions
     - **email**: not required
     \f
-    :param User: User input.
+    :param session: SessionDep input.
+    :param user_in: UserCreate input.
     """
-    user = get_user_by_username(session=session, username=user_in.username)
+    user = get_user_by_username(session = session, username = user_in.username)
     if user:
         raise exceptions.username_exist()
     if user_in.email:
-        user_with_email = get_user_by_email(session=session, email=user_in.email)
+        user_with_email = get_user_by_email(session = session, email = user_in.email)
         if user_with_email:
             raise exceptions.email_exist()
-    return create_user(session=session, user_create=user_in)
+    by_client_id = get_user_by_client_id(session = session, client_id = user_in.client_id)
+    if by_client_id:
+        raise exceptions.client_id_exist()
+    return create_user(session = session, user_create = user_in)
 
 
-@router.put("/me", response_model=UserOut)
+@user_router.put("/me", response_model = UserOut)
 async def update_user_me(
         *,
-        db: SessionDep,
-        password: str = Body(None),
-        username: str = Body(None),
+        session: SessionDep,
+        obj_in: UserUpdate,
         current_user: CurrentUser,
 ) -> Any:
     """Update own user."""
-
-    if get_user_by_username(session=db, username=username):
-        raise exceptions.username_exist()
     current_user_data = jsonable_encoder(current_user)
     user_in = UserUpdate(**current_user_data)
-    if password is not None:
-        user_in.password = password
-    if username is not None:
-        user_in.username = username
-    return update_user(session=db, db_user=current_user, user_in=user_in)
+    if obj_in.password is not None:
+        user_in.password = obj_in.password
+    if obj_in.client_secret is not None:
+        user_in.client_secret = obj_in.client_secret
+    if obj_in.client_id is not None:
+        user_in.client_id = obj_in.client_id
+    if user_in.username:
+        existing_username = get_user_by_username(session = session, username = user_in.username)
+        user_in.username = obj_in.username
+        if existing_username and existing_username.id != current_user.id:
+            raise exceptions.username_exist()
+    if obj_in.email is not None:
+        user_in.email = obj_in.email
+        existing_email = get_user_by_email(session = session, email = user_in.email)
+        if existing_email and existing_email.id != current_user.id:
+            raise exceptions.email_exist()
+    user = update_user(session = session, db_user=current_user, user_in=user_in)
+    return user
 
 
-@router.get("/me", response_model=UserOut)
+@user_router.get("/me", response_model = UserOut)
 async def read_user_me_end(
-        db: SessionDep,
+        session: SessionDep,
         current_user: CurrentUser,
 ) -> Any:
     """
@@ -101,36 +116,44 @@ async def read_user_me_end(
     return current_user
 
 
-@router.post("/open", response_model=UserOut)
+@user_router.post("/open", response_model = UserOut)
 async def create_user_open_end(
         *,
         session: SessionDep,
-        password: str = Body(...),
-        username: str = Body(...),
+        password: str = Form(...),
+        username: str = Form(...),
+        email: EmailStr = Form(default = None),
 ) -> Any:
     """
     Create new user without the need to be logged in.
     """
-    user = get_user_by_username(session=session, username=username)
+    from wg_backend.core.settings import get_settings
+    if not get_settings().USERS_OPEN_REGISTRATION:
+        raise exceptions.open_registration_forbidden()
+    user = get_user_by_username(session = session, username = username)
     if user:
         raise exceptions.username_exist()
-    user_in = UserCreate(password=password, username=username)
-    return create_user(session=session, user_create=user_in)
+    if email:
+        user_with_email = get_user_by_email(session = session, email = email)
+        if user_with_email:
+            raise exceptions.username_exist()
+    user_in = UserCreate(password = password, username = username, email = email)
+    return create_user(session = session, user_create = user_in)
 
 
-@router.get("/{user_id}", response_model=UserOut)
+@user_router.get("/{user_id}", response_model = UserOut)
 async def read_user_by_id_end(
         user_id: int,
-        db: SessionDep,
+        session: SessionDep,
         current_user: CurrentUser,
 ) -> Any:
     """
     Get a specific user by id.
     """
     # statement = select(User).where(User.id == user_id)
-    # user = db.execute(statement).scalar()
-    user = db.query(User).get(user_id)
-    if user==current_user:
+    # user = session.execute(statement).scalar()
+    user = session.query(User).get(user_id)
+    if user == current_user:
         return user
     if not current_user.is_superuser:
         raise exceptions.not_superuser()
@@ -139,24 +162,26 @@ async def read_user_by_id_end(
     return user
 
 
-@router.put("/{user_id}", response_model=UserOut, dependencies=[Depends(deps.get_current_active_user)])
+@user_router.put("/{user_id}", response_model = UserOut, dependencies = [Depends(get_current_active_user)])
 async def update_user_endpoint(
         *,
-        db: SessionDep,
+        session: SessionDep,
         user_id: int,
         user_in: UserUpdate,
         # current_user: CurrentUser,
 ) -> Any:
     """Update a user."""
-    user = db.query(User).get(user_id)
-    if user_in.email:
-        existing_user = get_user_by_email(session=db, email=user_in.email)
-        if existing_user and existing_user.id!=user_id:
-            raise exceptions.email_exist()
-    if user_in.username:
-        existing_user = get_user_by_username(session=db, username=user_in.username)
-        if existing_user and existing_user.id!=user_id:
-            raise exceptions.username_exist()
+    user = session.query(User).get(user_id)
     if not user:
         raise exceptions.user_not_exist_username()
-    return update_user(session=db, db_user=user, user_in=user_in)
+    if user_in.username:
+        existing_username = get_user_by_username(session = session, username = user_in.username)
+        if existing_username and existing_username.id != user_id:
+            # if existing_username:
+            raise exceptions.username_exist()
+    if user_in.email:
+        existing_email = get_user_by_email(session = session, email = user_in.email)
+        if existing_email and existing_email.id != user_id:
+            # if existing_email:
+            raise exceptions.email_exist()
+    return update_user(session = session, db_user = user, user_in = user_in)

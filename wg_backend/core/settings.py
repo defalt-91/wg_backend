@@ -1,6 +1,7 @@
 import json
+import secrets
 import subprocess
-
+from functools import lru_cache
 from ipaddress import IPv4Interface, IPv6Interface
 from pathlib import Path
 from typing import Literal, Optional, Self
@@ -43,7 +44,7 @@ def execute(cmd: list[str], input_value = None, check: bool = False):
         raise Exception(e.output)
 
 
-BASE_DIR = Path(__file__).parent.parent.parent
+# BASE_DIR = Path(__file__).parent.parent.parent
 
 
 def find_local_network_device(find_interface = True):
@@ -67,40 +68,48 @@ def find_local_network_device(find_interface = True):
     return find_local_ip_or_interface
 
 
+BASE_DIR: Path = Path(__file__).parent.parent.parent
+
+
 class BaseConfig(BaseSettings):
     model_config = SettingsConfigDict(env_file = BASE_DIR / ".env", env_file_encoding = 'utf-8')
-    BASE_DIR: Path | None = BASE_DIR
+    APP_USER: str | int = 1000
+    APP_GROUP: str | int = 1000
+    APP_UMASK: int = 0o600
+    APP_DIRS_UMASK: int = 0o700
+    GUNICORN_PORT: int = 8000
+    TMP_DIR: Path = Path('/tmp').resolve()
+    DIST_DIR: Path = (BASE_DIR / "dist").resolve()
+    RUN_DIR: Path = Field(default = Path("var/run"))
     ALEMBIC_CONFIG_PATH: Path | None = BASE_DIR / 'alembic.ini'
     DEBUG: bool = True
     STAGE: bool = True
-    APP_USER: str = 1000
-    APP_GROUP: str = 1000
+    LOG_LEVEL: Literal["NOTSET", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] | None = None
     DOMAIN: str = "localhost"
-    SECRET_KEY: str
+    SECRET_KEY: str = Field(default = secrets.token_urlsafe(32))
     API_ADDRESS: str = "/api/v1"
     ALGORITHM: Optional[str] = "HS256"
     UI_TRAFFIC_STATS: bool = True
-    BACKEND_SERVER_HOST: str = "localhost"
-    BACKEND_SERVER_PORT: int = 8000
 
     """
     sqlalchemy configs
     """
     # SQLALCHEMY_DATABASE_URI: str = "sqlite:///./sqlite.db"
-    SQLITE_DATABASE_LOCATION: Path | None = None
-    SQLALCHEMY_ECHO_CREATED_QUERIES: bool = False
+    SQLITE_DIR_PATH: Path = Field(default = Path("var/lib/wireguard"))
+    SQLITE_FILE_NAME: str = Field(default = "wireguard.sqlite.db")
+    SQLALCHEMY_ECHO_QUERIES_TO_STDOUT: bool = False
 
     """ 
     gunicorn confs
      """
+    GUNICORN_PROC_NAME: str = Field(default = "gunicorn")
+    GUNICORN_BIND: str = '0.0.0.0:8080'
+    LOGS_DIR_PATH: Path = Field(default = Path("var/log/gunicorn"))
     BACKEND_CORS_ORIGINS: list[str]
     BACKEND_ALLOWED_HOSTS: list[str]
     WORKERS_PER_CORE: int
     MAX_WORKERS: int | None = None
     WEB_CONCURRENCY: int | None = None
-    LOG_LEVEL: Literal["NOTSET", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-    ACCESS_LOG: str | Path | None = None
-    ERROR_LOG: str | Path | None = None
     GRACEFUL_TIMEOUT: int = 120
     TIMEOUT: int = 120
     KEEP_ALIVE: int = 5
@@ -113,8 +122,7 @@ class BaseConfig(BaseSettings):
     Wireguard interface configs
     """
     WG_INTERFACE_NAME: str = "wg0"
-    APP_FILES_DIR: Path = Field(BASE_DIR / 'wg_config')
-    WG_CONFIG_DIR_PATH: Path = Field(default = BASE_DIR / 'wg_config' / 'etc/wireguard')
+    WG_CONFIG_DIR_PATH: Path = Field(default = Path('etc/wireguard'))
     WG_SUBNET: IPv4Interface | IPv6Interface | None = None
     NET_DEVICE: str = Field(default_factory = find_local_network_device(find_interface = True))
     WG_HOST_IP: IPvAnyAddress = Field(default_factory = find_local_network_device(find_interface = False))
@@ -153,21 +161,42 @@ class BaseConfig(BaseSettings):
 
     @model_validator(mode = 'after')
     def verify_configs(self) -> Self:
-        if not self.SQLITE_DATABASE_LOCATION:
-            self.SQLITE_DATABASE_LOCATION = self.WG_CONFIG_DIR_PATH / Path("/var/lib/wireguard")
-
-        """ Gunicorn logs to stdout when its access_log and error_log value is '-' """
-        if not self.ERROR_LOG:
-            if self.DEBUG:
-                self.ERROR_LOG = '-'
-            else:
-                self.ERROR_LOG = self.WG_CONFIG_DIR_PATH / Path("var/log/gunicorn/access.log")
-        if not self.ACCESS_LOG:
-            if self.DEBUG:
-                self.ACCESS_LOG = '-'
-            else:
-                self.ACCESS_LOG = self.WG_CONFIG_DIR_PATH / Path("var/log/gunicorn/error.log")
-
+        """   DEBUG mode configurations    """
+        if self.DEBUG:
+            self.DIST_DIR = self.DIST_DIR / "debug"
+            self.SQLITE_DIR_PATH = self.DIST_DIR / self.SQLITE_DIR_PATH
+            self.WG_CONFIG_DIR_PATH = self.DIST_DIR / self.WG_CONFIG_DIR_PATH
+            self.LOGS_DIR_PATH = self.DIST_DIR / self.LOGS_DIR_PATH
+            self.TMP_DIR = self.DIST_DIR / "tmp"
+            """
+            Gunicorn logs to stdout when its access_log and error_log value is '-'
+            """
+            self.LOG_LEVEL = "DEBUG" if not self.DEBUG else self.LOG_LEVEL
+            self.GUNICORN_PROC_NAME = f"{self.GUNICORN_PROC_NAME}-debug"
+        elif self.STAGE:
+            """  STAGE mode configurations   """
+            self.DIST_DIR = self.DIST_DIR / "stage"
+            self.SQLITE_DIR_PATH = self.DIST_DIR / self.SQLITE_DIR_PATH
+            self.WG_CONFIG_DIR_PATH = self.DIST_DIR / self.WG_CONFIG_DIR_PATH
+            self.LOGS_DIR_PATH = self.DIST_DIR / self.LOGS_DIR_PATH
+            self.TMP_DIR = self.DIST_DIR / "tmp"
+            self.LOG_LEVEL = "INFO" if not self.LOG_LEVEL else self.LOG_LEVEL
+            self.GUNICORN_PROC_NAME = f"{self.GUNICORN_PROC_NAME}-stage"
+        else:
+            """   PRODUCTION mode configurations    """
+            self.DIST_DIR = self.DIST_DIR / "production"
+            self.GUNICORN_BIND = f"unix:{self.TMP_DIR}{self.GUNICORN_PROC_NAME}.sock"
+            self.RUN_DIR = self.DIST_DIR / self.RUN_DIR
+            self.TMP_DIR = self.DIST_DIR / self.TMP_DIR
+            self.WG_CONFIG_DIR_PATH = self.DIST_DIR / self.WG_CONFIG_DIR_PATH
+            self.SQLITE_DIR_PATH = self.DIST_DIR / self.SQLITE_DIR_PATH
+            self.LOGS_DIR_PATH = self.DIST_DIR / self.LOGS_DIR_PATH
+            # self.LOGS_DIR_PATH = Path("/etc/wireguard")
+            # self.WG_CONFIG_DIR_PATH
+        """   DEBUG and STAGE mode shared configurations    """
+        if self.DEBUG or self.STAGE:
+            self.GUNICORN_BIND = f"0.0.0.0:{self.GUNICORN_PORT}"
+            self.RUN_DIR = self.DIST_DIR / self.RUN_DIR
         if not self.WG_SUBNET:
             self.WG_SUBNET = IPvAnyInterface(f"{self.WG_HOST_IP}/24")
         if not self.WG_POST_DOWN:
@@ -189,6 +218,33 @@ class BaseConfig(BaseSettings):
 
     @computed_field  # type: ignore[misc]
     @property
+    def wg_if_peers_config_file_path(self) -> Path:
+        return (self.WG_CONFIG_DIR_PATH / f"{self.WG_INTERFACE_NAME}-peers.conf").resolve()
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def gunicorn_pid_file(self) -> Path:
+        if self.DEBUG or self.STAGE:
+            return self.DIST_DIR / self.RUN_DIR / f"{self.GUNICORN_PROC_NAME}.pid"
+        return Path(f"/var/run/{self.GUNICORN_PROC_NAME}.pid")
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def gunicorn_access_log_path(self) -> Path:
+        return (self.LOGS_DIR_PATH / "access.log" if not self.DEBUG else '-').resolve()
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def gunicorn_error_log_path(self) -> Path:
+        return (self.LOGS_DIR_PATH / "error.log" if not self.DEBUG else '-').resolve()
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def wg_if_config_file_path(self) -> Path:
+        return (self.WG_CONFIG_DIR_PATH / f"{self.WG_INTERFACE_NAME}.conf").resolve()
+
+    @computed_field  # type: ignore[misc]
+    @property
     def api_server_address(self) -> str:
         return f"{self.WG_HOST_IP}:{self.WG_HOST_PORT}{self.API_ADDRESS}"
 
@@ -200,7 +256,7 @@ class BaseConfig(BaseSettings):
     @computed_field  # type: ignore[misc]
     @property
     def sqlalchemy_db_uri(self) -> str:
-        return str(f"sqlite:///{self.SQLITE_DATABASE_LOCATION}/sqlite.db")
+        return str(f"sqlite:///{self.SQLITE_DIR_PATH}/{self.SQLITE_FILE_NAME}")
 
     # @computed_field  # type: ignore[misc]
     # @property
@@ -208,5 +264,6 @@ class BaseConfig(BaseSettings):
     #     return f"{self.WG_DEFAULT_ADDRESS.replace('x', '0')}/24"
 
 
-
-
+@lru_cache
+def get_settings() -> BaseConfig:
+    return BaseConfig()

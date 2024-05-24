@@ -4,14 +4,14 @@ from fastapi import Depends
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from wg_backend.core.configs.Settings import get_settings
+from wg_backend.core.settings import get_settings
 
 settings = get_settings()
 
 engine = create_engine(
     url = settings.sqlalchemy_db_uri,
     pool_pre_ping = True,
-    echo = settings.SQLALCHEMY_ECHO_CREATED_QUERIES,
+    echo = settings.SQLALCHEMY_ECHO_QUERIES_TO_STDOUT,
     future = True,
 )
 
@@ -24,9 +24,9 @@ SessionFactory = sessionmaker(
 )
 
 
-def get_session() -> Generator:
-    session = SessionFactory()
+def get_session():
     try:
+        session = SessionFactory()
         yield session
     except Exception:
         session.rollback()

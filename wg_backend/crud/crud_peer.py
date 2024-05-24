@@ -9,20 +9,19 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from wg_backend.api import exceptions
-from wg_backend.core.configs.Settings import get_settings
+from wg_backend.core.settings import get_settings
 from wg_backend.crud.base import CRUDBase
-from wg_backend.models.peer import Peer
-from wg_backend.schemas.Peer import PeerCreate
-from wg_backend.schemas.Peer import PeerUpdate
+from wg_backend.models import Peer
+from wg_backend.schemas import PeerCreate, PeerUpdate
 
 settings = get_settings()
 logging.basicConfig(level = settings.LOG_LEVEL)
 
 
 class CRUDPeer(CRUDBase[Peer, PeerCreate, PeerUpdate]):
-    def create(self, db: Session, *, obj_in: dict) -> Peer:
+    def create(self, session: Session, *, obj_in: dict) -> Peer:
         stmt = select(Peer.address)
-        peer_addresses = db.execute(stmt).scalars()
+        peer_addresses = session.execute(stmt).scalars()
         addresses_set = set(peer_addresses)
         new_ip_address = self.generate_new_address(addresses_set)
         if not new_ip_address:
@@ -31,15 +30,15 @@ class CRUDPeer(CRUDBase[Peer, PeerCreate, PeerUpdate]):
             **obj_in,
             address = new_ip_address,
         )
-        return self.save(db, new_peer)
+        return self.save(session, new_peer)
 
 
-    def peer_qrcode_svg(self, db: Session, peer_id: uuid.UUID):
-        peer_config = self.get_peer_config(db, peer_id = peer_id)
+    def peer_qrcode_svg(self, session: Session, peer_id: uuid.UUID):
+        peer_config = self.get_peer_config(session, peer_id = peer_id)
         return qrcode.make(peer_config, image_factory = SvgPathImage, box_size = 40)
 
     @staticmethod
-    def get_peer_config(db: Session, peer_id: uuid.UUID):
+    def get_peer_config(session: Session, peer_id: uuid.UUID):
         stmt = select(
             Peer.private_key,
             Peer.preshared_key,
@@ -48,7 +47,7 @@ class CRUDPeer(CRUDBase[Peer, PeerCreate, PeerUpdate]):
             Peer.allowed_ips,
             Peer.persistent_keepalive
         ).where(Peer.id == peer_id)
-        data = db.execute(stmt).first()
+        data = session.execute(stmt).first()
         if not data.private_key:
             raise exceptions.peer_not_found()
         (

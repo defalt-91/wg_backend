@@ -7,8 +7,7 @@ from alembic import context
 from wg_backend.db.registry import mapper_registry  # noqa
 from wg_backend.models.peer import Peer  # noqa
 from wg_backend.models.user import User  # noqa
-from wg_backend.core.configs.Settings import get_settings
-
+from wg_backend.core.settings import get_settings
 settings = get_settings()
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

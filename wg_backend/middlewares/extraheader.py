@@ -19,6 +19,3 @@ class ExtraResponseHeadersMiddleware:
             await send(message)
 
         await self.app(scope, receive, send_with_extra_headers)
-
-
-
