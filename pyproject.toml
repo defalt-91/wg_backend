@@ -4,15 +4,13 @@ version = "0.1.0"
 description = "fastapi python backend for wireguard"
 authors = ["defalt91 <armansoltanian@gmail.com>"]
 readme = "README.md"
-package-mode =false
+package-mode = true
 repository = "https://github.com/defalt-91/wg_backend"
-
 
 [tool.poetry.dependencies]
 python = "^3.12"
 fastapi = "^0.111.0"
 python-jose = "^3.3.0"
-uvicorn = "^0.29.0"
 gunicorn = "^22.0.0"
 qrcode = "^7.4.2"
 tenacity = "^8.3.0"
@@ -22,16 +20,20 @@ pydantic-settings = "^2.2.1"
 python-multipart = "^0.0.9"
 email-validator = "^2.1.1"
 passlib = {extras = ["bcrypt"], version = "^1.7.4"}
-websockets = "^12.0"
 pyroute2 = "^0.7.12"
-pyjwt = "^2.8.0"
 emails = "^0.6"
-update = "^0.0.1"
+uvicorn = "^0.29.0"
 
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.4.4"
 prettier = "^0.0.7"
+mypy = "^1.10.0"
+
+[tool.mypy]
+plugins = ["pydantic.mypy"]
+strict = true
+follow_imports = "silent"
 
 [build-system]
 requires = ["poetry-core"]

@@ -1,6 +1,8 @@
 ### Example user template template
 ### Example user template
 .prettierrc
+env.ini
+.env
 wg_config
 logs/*
 poetry.lock

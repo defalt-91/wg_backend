@@ -5,7 +5,7 @@ services:
     image: nginx:1.25.1
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf
-      #- ./wg_frontend/dist/wg_frontend/browser:/var/nginx/www/app
+      #- ./wg_frontend/dist/wg_frontend/browser:/var/nginx/www/wg_backend
       # - ./backend/media:/var/media
       # - ./backend/gunicorn/cert/localhost.crt:/etc/ssl/certs/nginx-selfsigned.crt
       # - ./backend/gunicorn/cert/localhost.decrypted.key:/etc/ssl/private/nginx-selfsigned.key
@@ -25,7 +25,7 @@ services:
       - NET_ADMIN
       - SYS_MODULE #optional
     volumes:
-      - ./wg_backend:/app
+      - ./wg_backend:/wg_backend
     sysctls:
       - net.ipv4.conf.all.src_valid_mark=1
     restart: unless-stopped

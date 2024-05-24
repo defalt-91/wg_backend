@@ -11,8 +11,8 @@ RUN apt update
 RUN apt install -y wireguard-tools net-tools iproute2
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 RUN apt install -y iptables
-# COPY ./gunicorn.prod.sh /gunicorn.prod.sh
-# RUN chmod +x /gunicorn.prod.sh
+# COPY ./prod.gunicorn.sh /prod.gunicorn.sh
+# RUN chmod +x /prod.gunicorn.sh
 
 # COPY ./gunicorn_conf.py /gunicorn_conf.py
 
@@ -41,7 +41,7 @@ RUN \
     WIREGUARD_RELEASE=$(curl -sX GET "https://api.github.com/repos/WireGuard/wireguard-tools/tags" \
     | jq -r .[0].name); \
   fi && \
-  cd /app && \
+  cd /wg_backend && \
   git clone https://git.zx2c4.com/wireguard-tools && \
   cd wireguard-tools && \
   git checkout "${WIREGUARD_RELEASE}" && \
@@ -56,6 +56,6 @@ RUN \
 RUN mkdir -p /config/wg_confs
 # ports and volumes
 EXPOSE 51820/udp 8000/tcp
-# Run the start script, it will check for an /app/prestart.sh script (e.g. for migrations)
+# Run the start script, it will check for an /wg_backend/prestart.sh script (e.g. for migrations)
 # And then will start Gunicorn with Uvicorn
 ENTRYPOINT ["/app/start.sh"]

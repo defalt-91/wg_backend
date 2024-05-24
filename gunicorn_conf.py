@@ -2,6 +2,7 @@ import multiprocessing
 import os
 from pathlib import Path
 
+from wg_backend.core.configs.Settings import get_settings
 from gunicorn.config import (
     ChildExit,
     NumWorkersChanged,
@@ -19,8 +20,6 @@ from gunicorn.config import (
     WorkerInt,
 )
 
-from app.core.Settings import get_settings
-
 settings = get_settings()
 
 """ Debugging """
@@ -31,13 +30,13 @@ spew = False
 """ Logging """
 loglevel = settings.LOG_LEVEL
 logger_class = "gunicorn.glogging.Logger"
-accesslog = settings.ACCESS_LOG if not settings.DEBUG else '-'
+accesslog = settings.ACCESS_LOG
 disable_redirect_access_to_syslog = False
 access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"'
-errorlog = settings.ERROR_LOG if not settings.DEBUG else '-'
+errorlog = settings.ERROR_LOG
 capture_output = True
 logconfig = None
-logconfig_dict = {}
+logconfig_dict = { }
 # logconfig_json = None
 # syslog_addr= unix://localhost:514
 syslog_prefix = "Backend==>"
@@ -52,11 +51,11 @@ syslog_prefix = "Backend==>"
 default_proc_name = 'gunicorn'
 proc_name = default_proc_name if settings.DEBUG else f"{default_proc_name}_debug"
 
-wsgi_app = "app.main:app"
+wsgi_app = "wg_backend.main:wg_backend"
 
 """ SSL """
-# keyfile="/app/gunicorn/cert/localhost.decrypted.key"
-# certfile="/app/gunicorn/cert/localhost.crt"
+# keyfile="/wg_backend/gunicorn/cert/localhost.decrypted.key"
+# certfile="/wg_backend/gunicorn/cert/localhost.crt"
 # ssl_version = 2
 # cert_reqs = 0
 # ca_certs = None
@@ -79,13 +78,12 @@ reuse_port = False
 # chdir = str(BASE_DIR)
 # daemon = True
 # raw_env = [
-#     # f'DJANGO_SECRET_KEY={}',
 #     # 'SPAM=eggs',
 # ]
 pidfile = str(Path(__name__).resolve().parent / "logs/gunicorn/pid")
-# user = "defalt" if settings.DEBUG else 'gunicorn'
-# group = "defalt" if settings.DEBUG else 'gunicorn'
-# umask = 0
+user = settings.APP_USER
+# group = settings.APP_GROUP
+# umask = os.umask(77)
 # initgroups = False
 worker_tmp_dir = str(settings.BASE_DIR / "logs/gunicorn/")
 tmp_upload_dir = str(settings.BASE_DIR) if settings.DEBUG else '/tmp/gunicorn'
@@ -110,7 +108,7 @@ proxy_allow_ips = '127.0.0.1'
 """ Server Socket """
 PORT = settings.BACKEND_SERVER_PORT
 HOST = settings.BACKEND_SERVER_HOST
-bind = f"{HOST}:{PORT}" if settings.DEBUG else "unix:/run/gunicorn.sock"
+bind = f"{HOST}:{PORT}" if settings.DEBUG else f"unix:/tmp/gunicorn.sock"
 backlog = 2048
 
 #   backlog - The number of pending connections. This refers
@@ -171,7 +169,7 @@ def when_ready(server):
 
 
 def pre_fork(server, worker):
-    Prefork.pre_fork(server=server, worker=worker)
+    Prefork.pre_fork(server = server, worker = worker)
 
 
 #     server.log.info("Worker removed (pid: %s)", worker.pid)
@@ -195,7 +193,7 @@ def worker_int(worker):
 
     ## get traceback info
     import threading, sys, traceback
-    id2name = {th.ident: th.name for th in threading.enumerate()}
+    id2name = { th.ident: th.name for th in threading.enumerate() }
     code = []
     for threadId, stack in sys._current_frames().items():
         code.append("\n# Thread: %s(%d)" % (id2name.get(threadId, ""), threadId))
@@ -207,7 +205,7 @@ def worker_int(worker):
 
 
 def worker_abort(worker):
-    WorkerAbort.worker_abort(worker=worker)
+    WorkerAbort.worker_abort(worker = worker)
     # worker.log.info("worker received SIGABRT signal")
 
 

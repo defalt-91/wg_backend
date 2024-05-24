@@ -4,10 +4,10 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
-from app.db.registry import mapper_registry  # noqa
-from app.models.peer import Peer  # noqa
-from app.models.user import User  # noqa
-from app.core.Settings import get_settings
+from wg_backend.db.registry import mapper_registry  # noqa
+from wg_backend.models.peer import Peer  # noqa
+from wg_backend.models.user import User  # noqa
+from wg_backend.core.configs.Settings import get_settings
 
 settings = get_settings()
 # this is the Alembic Config object, which provides
@@ -18,7 +18,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 config.set_section_option(
-    config.config_ini_section, "sqlalchemy.url", str(settings.SQLALCHEMY_DATABASE_URI)
+    config.config_ini_section, "sqlalchemy.url", str(settings.sqlalchemy_db_uri)
 )
 # add your model's MetaData object here
 # add your model's MetaData object here
