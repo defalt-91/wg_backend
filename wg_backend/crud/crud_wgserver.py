@@ -5,19 +5,14 @@ from typing import Type
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-
 from wg_backend.api import exceptions
 from wg_backend.core.settings import execute, get_settings
 from wg_backend.crud.base import CRUDBase
-from wg_backend.models import Peer, WGInterface
-from wg_backend.schemas import (
-    DBPlusStdoutPeer,
-    DbDataPeer,
-    StdoutDumpPeer,
-    StdoutRxTxPlusLhaPeer,
-    WGInterfaceCreate,
-    WGInterfaceUpdate
-)
+from wg_backend.models.peer import Peer
+from wg_backend.models.wg_interface import WGInterface
+from wg_backend.schemas.Peer import DBPlusStdoutPeer, DbDataPeer, StdoutDumpPeer, StdoutRxTxPlusLhaPeer
+from wg_backend.schemas.wg_interface import WGInterfaceCreate, WGInterfaceUpdate
+
 
 settings = get_settings()
 logging.basicConfig(level = settings.LOG_LEVEL)
@@ -132,7 +127,7 @@ class CRUDWGInterface(CRUDBase[WGInterface, WGInterfaceCreate, WGInterfaceUpdate
         dump_peers_str_list = proc.stdout.strip()
         skipped_interface_str = dump_peers_str_list.split(os.linesep)[1::]
         """ loading db data """
-        peers_db_data = [DbDataPeer.from_orm(db_data) for db_data in peers_data]
+        peers_db_data = [DbDataPeer.model_validate(db_data) for db_data in peers_data]
         """ loading dump data """
         peers_dump_data = [StdoutDumpPeer.from_dump_stdout(db_data) for db_data in skipped_interface_str]
         for db_peer in peers_db_data:

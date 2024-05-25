@@ -5,7 +5,7 @@ from starlette.middleware import cors, trustedhost  # gzip,; sessions,; authenti
 
 from wg_backend.api.api_v1.api import v1_api_router
 from wg_backend.core.settings import get_settings
-from wg_backend.middlewares import wg_quick_lifespan
+from wg_backend.middlewares.wgstartup import wg_quick_lifespan
 
 
 settings = get_settings()

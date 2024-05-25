@@ -3,7 +3,7 @@ import uuid
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, TIMESTAMP, Uuid
 from sqlalchemy.orm import relationship
 
-from wg_backend.db import DateMixin, NameMixin, mapper_registry
+from wg_backend.db.registry import DateMixin, NameMixin, mapper_registry
 
 
 @mapper_registry.mapped

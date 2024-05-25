@@ -2,6 +2,8 @@
 tmp/
 env.ini
 .env
+docker-compose.yml
+dist
 wg_config
 logs/*
 poetry.lock

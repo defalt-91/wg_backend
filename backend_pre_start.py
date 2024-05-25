@@ -18,26 +18,27 @@ wait_seconds = 1
 
 def create_necessary_dirs():
     try:
-        settings.DIST_DIR.mkdir(exist_ok = True, mode = settings.APP_DIRS_UMASK, parents = True)
-        settings.TMP_DIR.mkdir(exist_ok = True, mode = settings.APP_DIRS_UMASK)
-        settings.WG_CONFIG_DIR_PATH.mkdir(exist_ok = True, mode = settings.APP_DIRS_UMASK, parents = True)
-        settings.SQLITE_DIR_PATH.mkdir(exist_ok = True, mode = settings.APP_DIRS_UMASK, parents = True)
-        settings.RUN_DIR.mkdir(exist_ok = True, mode = settings.APP_DIRS_UMASK, parents = True)
+        settings.DIST_DIR.mkdir(exist_ok = True, mode = settings.app_umask_dirs_oct, parents = True)
+        settings.TMP_DIR.mkdir(exist_ok = True, mode = settings.app_umask_dirs_oct)
+        settings.WG_CONFIG_DIR_PATH.mkdir(exist_ok = True, mode = settings.app_umask_dirs_oct, parents = True)
+        settings.SQLITE_DIR_PATH.mkdir(exist_ok = True, mode = settings.app_umask_dirs_oct, parents = True)
+        settings.PID_FILE_DIR.mkdir(exist_ok = True, mode = settings.app_umask_dirs_oct, parents = True)
         if not settings.DEBUG:
-            settings.LOGS_DIR_PATH.mkdir(exist_ok = True, mode = settings.APP_DIRS_UMASK, parents = True)
+            settings.LOGS_DIR_PATH.mkdir(exist_ok = True, mode = settings.app_umask_dirs_oct, parents = True)
+            settings.RUN_DIR.mkdir(exist_ok = True, mode = settings.app_umask_dirs_oct, parents = True)
     except Exception as e:
         raise Exception('Could not create necessary directories: {}'.format(e))
 
 
 def create_necessary_files():
     try:
-        (settings.SQLITE_DIR_PATH / settings.SQLITE_FILE_NAME).touch(exist_ok = True, mode = settings.APP_UMASK)
-        # settings.gunicorn_pid_file.touch(exist_ok = True, mode = settings.APP_UMASK)
-        settings.wg_if_config_file_path.touch(exist_ok = True, mode = settings.APP_UMASK)
-        settings.wg_if_peers_config_file_path.touch(exist_ok = True, mode = settings.APP_UMASK)
+        (settings.SQLITE_DIR_PATH / settings.SQLITE_FILE_NAME).touch(exist_ok = True, mode = settings.app_umask_oct)
+        # settings.gunicorn_pid_file.touch(exist_ok = True, mode = settings.app_umask_oct)
+        settings.wg_if_config_file_path.touch(exist_ok = True, mode = settings.app_umask_oct)
+        settings.wg_if_peers_config_file_path.touch(exist_ok = True, mode = settings.app_umask_oct)
         if not settings.DEBUG:
-            settings.gunicorn_access_log_path.touch(exist_ok = True, mode = settings.APP_UMASK)
-            settings.gunicorn_error_log_path.touch(exist_ok = True, mode = settings.APP_UMASK)
+            settings.gunicorn_access_log_path.touch(exist_ok = True, mode = settings.app_umask_oct)
+            settings.gunicorn_error_log_path.touch(exist_ok = True, mode = settings.app_umask_oct)
     except Exception as e:
         raise Exception('Could not create necessary files: {}'.format(e))
 
@@ -49,26 +50,11 @@ def create_necessary_files():
     after = after_log(logger, logging.INFO),
 )
 def init() -> None:
-    print('-->',settings.DEBUG,settings.STAGE)
-    print('DIST_DIR', settings.DIST_DIR)
-    print('TMP_DIR', settings.TMP_DIR)
-    print('WG_CONFIG_DIR_PATH', settings.WG_CONFIG_DIR_PATH)
-    print('SQLITE_DIR_PATH', settings.SQLITE_DIR_PATH)
-    print('RUN_DIR', settings.RUN_DIR)
-    print('LOGS_DIR_PATH', settings.LOGS_DIR_PATH)
-
-    print('SQLITE_FILE_NAME', settings.SQLITE_FILE_NAME)
-    print('gunicorn_pid_file', settings.gunicorn_pid_file)
-    print('wg_if_config_file_path', settings.wg_if_config_file_path)
-    print('wg_if_peers_config_file_path', settings.wg_if_peers_config_file_path)
-    print('gunicorn_access_log_path', settings.gunicorn_access_log_path)
-    print('gunicorn_error_log_path', settings.gunicorn_error_log_path)
-
     try:
         logger.info('Creating necessary directories and files with needed permissions (exist_ok).')
         create_necessary_dirs()
         create_necessary_files()
-        # (settings.BASE_DIR / 'sqlite.db').touch(exist_ok = True, mode = settings.APP_UMASK)
+        # (settings.BASE_DIR / 'sqlite.db').touch(exist_ok = True, mode = settings.app_umask_oct)
         logger.info('dirs and files are ready to rock.')
         """
         alembic upgrade head

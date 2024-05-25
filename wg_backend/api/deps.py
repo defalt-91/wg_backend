@@ -8,9 +8,10 @@ from pydantic import ValidationError
 from wg_backend.api import exceptions
 from wg_backend.core.settings import get_settings
 from wg_backend.crud import crud_user_fn
-from wg_backend.db import SessionDep
-from wg_backend.models import User
-from wg_backend.schemas import TokenData
+from wg_backend.db.session import SessionDep
+from wg_backend.models.user import User
+from wg_backend.schemas.token import TokenData
+
 
 settings = get_settings()
 

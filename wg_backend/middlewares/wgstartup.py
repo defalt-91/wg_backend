@@ -7,7 +7,7 @@ from fastapi.datastructures import State
 
 from wg_backend.core.settings import execute, get_settings
 from wg_backend.crud.crud_wgserver import crud_wg_interface
-from wg_backend.db import SessionFactory
+from wg_backend.db.session import SessionFactory
 
 settings = get_settings()
 

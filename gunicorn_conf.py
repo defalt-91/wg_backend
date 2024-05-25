@@ -17,29 +17,30 @@ from gunicorn.config import (
     WorkerExit,
     WorkerInt,
 )
-
 from wg_backend.core.settings import get_settings
 
-config = get_settings()
+settings = get_settings()
+# BASE_DIR = Path(__file__).resolve().parent
+
+proc_name = settings.PROJECT_NAME
 
 """ Debugging """
 check_config = False
-print_config = True
+print_config = False
 spew = False
 
 """ Logging """
-loglevel = config.LOG_LEVEL
-logger_class = "gunicorn.glogging.Logger"
-accesslog = config.gunicorn_access_log_path
-disable_redirect_access_to_syslog = False
-access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"'
-errorlog = config.gunicorn_error_log_path
-capture_output = True
-logconfig = None
-logconfig_dict = {}
+# loglevel = "DEBUG"
+# logger_class = "gunicorn.logging.Logger"
+accesslog = str(settings.gunicorn_access_log_path)
+# disable_redirect_access_to_syslog = False
+# access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"'
+errorlog = str(settings.gunicorn_error_log_path)
+#
+# logconfig = None {}
 # logconfig_json = None
 # syslog_addr= unix://localhost:514
-syslog_prefix = "Backend==>"
+syslog_prefix = "WGBackend ==> "
 # syslog_facility = 'user
 # syslog = False
 # enable_stdio_inheritance = False
@@ -48,9 +49,7 @@ syslog_prefix = "Backend==>"
 # statsd_prefix = ""
 
 """ Process Naming """
-proc_name = config.GUNICORN_PROC_NAME
-
-wsgi_app = "wg_backend.main:wg_backend"
+wsgi_app = "wg_backend.main:app"
 
 """ SSL """
 # keyfile="/wg_backend/gunicorn/cert/localhost.decrypted.key"
@@ -68,28 +67,29 @@ limit_request_fields = 100
 limit_request_field_size = 8190
 
 """ Server Mechanics """
-pidfile = config.gunicorn_pid_file
-worker_tmp_dir = str(config.TMP_DIR / "gunicorn")
-tmp_upload_dir = str(config.TMP_DIR / "gunicorn")
-user = config.APP_USER
-group = config.APP_GROUP
-umask = config.APP_UMASK
-preload_app = not config.DEBUG
+# pidfile = "gunicorn.pid"
+pidfile = str(settings.gunicorn_pid_file)
+worker_tmp_dir = str(settings.DIST_DIR / "tmp")
+# user = settings.APP_USER
+# group = settings.APP_GROUP
+# initgroups = False
+# umask = 0o760
+preload_app = False
 reuse_port = False
 # sendfile= None
 # chdir = str(BASE_DIR)
-# daemon = True
+daemon = False
 # raw_env = [
 #     # 'SPAM=eggs',
 # ]
-# initgroups = False
 secure_scheme_headers = {
     'X-FORWARDED-PROTOCOL': 'ssl',
     'X-FORWARDED-PROTO': 'https',
     'X-FORWARDED-SSL': 'on',
 }
+
 forwarded_allow_ips = '127.0.0.1'
-# pythonpath = None
+# pythonpath = None,
 # paste = None
 proxy_protocol = False
 proxy_allow_ips = '127.0.0.1'
@@ -100,12 +100,14 @@ proxy_allow_ips = '127.0.0.1'
 # casefold_http_method = False
 # header_map = 'drop'
 # tolerate_dangerous_framing
-reload = config.DEBUG or config.STAGE
-reload_engine = 'auto'
-reload_extra_files = []
+# reload = False
+# reload_engine = 'auto'
+# reload_extra_files = []
 
 """ Server Socket """
-bind = config.GUNICORN_BIND
+# socket_file_address = settings.DIST_DIR / f"run/gunicorn/{proc_name}.sock"
+
+bind = settings.gunicorn_bind_value
 backlog = 2048
 
 #   backlog - The number of pending connections. This refers
@@ -120,19 +122,18 @@ backlog = 2048
 
 """ Worker processes """
 cores = multiprocessing.cpu_count()
-workers_per_core = float(config.WORKERS_PER_CORE)
+workers_per_core = settings.WORKERS_PER_CORE
 default_web_concurrency = workers_per_core * cores + 1
 
-use_max_workers = config.MAX_WORKERS if config.MAX_WORKERS else None
-if config.WEB_CONCURRENCY:
-    web_concurrency = config.WEB_CONCURRENCY
+use_max_workers = settings.MAX_WORKERS if settings.MAX_WORKERS else None
+if settings.WEB_CONCURRENCY:
+    web_concurrency = settings.WEB_CONCURRENCY
     assert web_concurrency > 0
 else:
     web_concurrency = max(int(default_web_concurrency), 2)
     if use_max_workers:
         web_concurrency = min(web_concurrency, use_max_workers)
-if config.DEBUG:
-    web_concurrency = 1
+
 
 worker_class = 'uvicorn.workers.UvicornH11Worker'
 worker_connections = 1000  # The maximum number of simultaneous clients.
@@ -142,17 +143,18 @@ max_requests = (
 )
 # max_requests_jitter = 1
 # Workers silent for more than this many seconds are killed and restarted.
-timeout = config.TIMEOUT
-graceful_timeout = config.GRACEFUL_TIMEOUT
-keepalive = config.KEEP_ALIVE
+timeout = 120
+graceful_timeout = 120
+keepalive = 5
+
+
+print('--> ', settings.gunicorn_bind_value)
 
 """  server hooks  """
-
 
 def on_starting(server):
     OnStarting.on_starting(server)
     server.log.info("Worker starting (pid: %s)")
-    server.log.info(f"===> current user is  {os.system('echo whoami')}")
 
 
 def on_reload(server):

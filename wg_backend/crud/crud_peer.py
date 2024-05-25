@@ -11,8 +11,9 @@ from sqlalchemy.orm import Session
 from wg_backend.api import exceptions
 from wg_backend.core.settings import get_settings
 from wg_backend.crud.base import CRUDBase
-from wg_backend.models import Peer
-from wg_backend.schemas import PeerCreate, PeerUpdate
+from wg_backend.models.peer import Peer
+from wg_backend.schemas.Peer import PeerCreate, PeerUpdate
+
 
 settings = get_settings()
 logging.basicConfig(level = settings.LOG_LEVEL)

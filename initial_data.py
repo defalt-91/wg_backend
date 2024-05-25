@@ -7,7 +7,8 @@ from wg_backend.core.settings import get_settings
 from wg_backend.crud.crud_user_fn import authenticate, create_user
 from wg_backend.crud.crud_wgserver import crud_wg_interface
 from wg_backend.db.session import SessionFactory
-from wg_backend.schemas import UserCreate,WGInterfaceCreate
+from wg_backend.schemas.user import UserCreate
+from wg_backend.schemas.wg_interface import WGInterfaceCreate
 
 settings = get_settings()
 logging.basicConfig(level = settings.LOG_LEVEL)

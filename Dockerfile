@@ -11,8 +11,8 @@ RUN apt update
 RUN apt install -y wireguard-tools net-tools iproute2
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 RUN apt install -y iptables
-# COPY ./prod.gunicorn.sh /prod.gunicorn.sh
-# RUN chmod +x /prod.gunicorn.sh
+# COPY ./prod.prod_dir.sh /prod.prod_dir.sh
+# RUN chmod +x /prod.prod_dir.sh
 
 # COPY ./gunicorn_conf.py /gunicorn_conf.py
 

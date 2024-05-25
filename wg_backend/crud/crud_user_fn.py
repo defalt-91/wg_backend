@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 
 from wg_backend.api import exceptions
 from wg_backend.core.security import get_password_hash, verify_password
-from wg_backend.models import User
-from wg_backend.schemas import UserCreate, UserUpdate
+from wg_backend.models.user import User
+from wg_backend.schemas.user import UserCreate, UserUpdate
 
 
 def create_user(*, session: Session, user_create: UserCreate) -> User | None:

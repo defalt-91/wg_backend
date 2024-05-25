@@ -1,6 +1,10 @@
 from fastapi import APIRouter
 
-from . import login_router, peer_router, user_router, wg_if_router
+from wg_backend.api.api_v1.endpoints.login import login_router
+from wg_backend.api.api_v1.endpoints.peer import peer_router
+from wg_backend.api.api_v1.endpoints.users import user_router
+from wg_backend.api.api_v1.endpoints.wg_interface import wg_if_router
+
 
 v1_api_router = APIRouter(redirect_slashes = False, prefix = "")
 

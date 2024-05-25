@@ -5,19 +5,17 @@ from fastapi import APIRouter, Depends, Response
 from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordRequestFormStrict
 
-from wg_backend.api import (
-    CurrentUser,
-    generate_password_reset_token,
-    generate_reset_password_email,
-    get_current_active_superuser,
-    send_email, verify_password_reset_token,
-    exceptions
-)
-from wg_backend.core import create_access_token, get_password_hash
+from wg_backend.api import exceptions
+from wg_backend.api.deps import CurrentUser, get_current_active_superuser
+from wg_backend.api.utils import generate_password_reset_token, generate_reset_password_email, send_email, \
+    verify_password_reset_token
+
+from wg_backend.core.security import create_access_token, get_password_hash
 from wg_backend.core.settings import get_settings
 from wg_backend.crud.crud_user_fn import authenticate, get_user_by_email
-from wg_backend.db import SessionDep
-from wg_backend.schemas import Message, NewPassword, Token, UserOut
+from wg_backend.db.session import SessionDep
+from wg_backend.schemas.token import Message, NewPassword, Token
+from wg_backend.schemas.user import UserOut
 
 settings = get_settings()
 login_router = APIRouter()

@@ -1,6 +1,6 @@
 from sqlalchemy import Boolean, Column, String
 
-from wg_backend.db import DateMixin, NameMixin, mapper_registry
+from wg_backend.db.registry import DateMixin, NameMixin, mapper_registry
 
 
 @mapper_registry.mapped

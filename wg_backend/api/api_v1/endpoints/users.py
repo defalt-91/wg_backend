@@ -4,13 +4,14 @@ from fastapi import APIRouter, Depends, Form
 from fastapi.encoders import jsonable_encoder
 from pydantic import EmailStr
 
-from wg_backend.api import (CurrentUser, exceptions, get_current_active_superuser,
-                            get_current_active_user)
+from wg_backend.api import exceptions
+from wg_backend.api.deps import CurrentUser, get_current_active_superuser, get_current_active_user
 from wg_backend.crud.crud_user_fn import (create_user, get_user_by_client_id, get_user_by_email, get_user_by_username,
                                           update_user)
-from wg_backend.db import SessionDep
-from wg_backend.models import User
-from wg_backend.schemas import UserCreate, UserOut, UserUpdate
+from wg_backend.db.session import SessionDep
+from wg_backend.models.user import User
+from wg_backend.schemas.user import UserCreate, UserOut, UserUpdate
+
 
 user_router = APIRouter()
 

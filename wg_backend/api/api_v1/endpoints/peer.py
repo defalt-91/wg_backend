@@ -4,18 +4,21 @@ from io import StringIO
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import Response, StreamingResponse
-
-from wg_backend.api import TimedRoute, get_current_active_superuser
+from wg_backend.api.deps import get_current_active_superuser
+from wg_backend.api.utils import TimedRoute
 from wg_backend.crud.crud_peer import crud_peer
 from wg_backend.crud.crud_wgserver import crud_wg_interface
-# from wg_backend.crud import crud_peer, crud_wg_interface
-from wg_backend.db import SessionDep
-from wg_backend.models import Peer, WGInterface
-from wg_backend.schemas import (
-    DBPlusStdoutPeer, DbDataPeer, PeerCreate, PeerCreateForInterface, PeerUpdate,
+from wg_backend.db.session import SessionDep
+from wg_backend.models.peer import Peer
+from wg_backend.models.wg_interface import WGInterface
+from wg_backend.schemas.Peer import (
+    DBPlusStdoutPeer,
+    DbDataPeer,
+    PeerCreate,
+    PeerCreateForInterface,
+    PeerUpdate,
     StdoutRxTxPlusLhaPeer
 )
-
 
 peer_router = APIRouter(route_class = TimedRoute)
 
@@ -53,12 +56,7 @@ async def peer_list(session: SessionDep):
     dependencies = [Depends(get_current_active_superuser)],
     response_model_exclude_none = True,
     response_model_exclude_unset = True,
-    response_model_exclude = {
-        # "public_key",
-        # "transfer_rx",
-        # "transfer_tx",
-        # "last_handshake_at"
-    },
+    response_model_exclude = {},
 )
 async def create_peer(
         peer_in: PeerCreate,
