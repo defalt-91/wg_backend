@@ -4,6 +4,7 @@ env.ini
 .env
 docker-compose.yml
 dist
+wg.py
 wg_config
 logs/*
 poetry.lock
