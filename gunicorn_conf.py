@@ -30,7 +30,8 @@ print_config = False
 spew = False
 
 """ Logging """
-# loglevel = "DEBUG"
+### NOTSET, DEBUG, INFO, WARNING, ERROR, CRITICAL
+loglevel = "WARNING"
 # logger_class = "gunicorn.logging.Logger"
 accesslog = str(settings.gunicorn_access_log_path)
 # disable_redirect_access_to_syslog = False
@@ -148,7 +149,7 @@ graceful_timeout = 120
 keepalive = 5
 
 
-print('--> ', settings.gunicorn_bind_value)
+print('connect to this app using --> ', settings.gunicorn_bind_value)
 
 """  server hooks  """
 
@@ -164,7 +165,7 @@ def on_reload(server):
 
 def when_ready(server):
     WhenReady.when_ready(server)
-    # server.log.info("Server is ready. Spawning workers")
+    server.log.info("Server is ready. Spawning workers")
 
 
 def pre_fork(server, worker):

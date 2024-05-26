@@ -1,6 +1,7 @@
 import logging
 
 from sqlalchemy import select
+import sqlalchemy
 from tenacity import after_log, before_log, retry, stop_after_attempt, wait_fixed
 
 from alembic import command, config
@@ -16,18 +17,18 @@ max_tries = 60 * 5  # 5 minutes
 wait_seconds = 1
 
 
-def create_necessary_dirs():
+def create_necessary_dirs_with():
     try:
         settings.DIST_DIR.mkdir(exist_ok = True, mode = settings.app_umask_dirs_oct, parents = True)
         settings.TMP_DIR.mkdir(exist_ok = True, mode = settings.app_umask_dirs_oct)
         settings.WG_CONFIG_DIR_PATH.mkdir(exist_ok = True, mode = settings.app_umask_dirs_oct, parents = True)
-        settings.SQLITE_DIR_PATH.mkdir(exist_ok = True, mode = settings.app_umask_dirs_oct, parents = True)
+        # settings.SQLITE_DIR_PATH.mkdir(exist_ok = True, mode = settings.app_umask_dirs_oct, parents = True)
         settings.PID_FILE_DIR.mkdir(exist_ok = True, mode = settings.app_umask_dirs_oct, parents = True)
         if not settings.DEBUG:
             settings.LOGS_DIR_PATH.mkdir(exist_ok = True, mode = settings.app_umask_dirs_oct, parents = True)
             settings.RUN_DIR.mkdir(exist_ok = True, mode = settings.app_umask_dirs_oct, parents = True)
     except Exception as e:
-        raise Exception('Could not create necessary directories: {}'.format(e))
+        raise Exception(f'Could not create necessary directories: {e}')
 
 
 def create_necessary_files():
@@ -40,7 +41,7 @@ def create_necessary_files():
             settings.gunicorn_access_log_path.touch(exist_ok = True, mode = settings.app_umask_oct)
             settings.gunicorn_error_log_path.touch(exist_ok = True, mode = settings.app_umask_oct)
     except Exception as e:
-        raise Exception('Could not create necessary files: {}'.format(e))
+        raise Exception(f'Could not create necessary files: {e}')
 
 
 @retry(
@@ -51,30 +52,28 @@ def create_necessary_files():
 )
 def init() -> None:
     try:
-        logger.info('Creating necessary directories and files with needed permissions (exist_ok).')
-        create_necessary_dirs()
-        create_necessary_files()
-        # (settings.BASE_DIR / 'sqlite.db').touch(exist_ok = True, mode = settings.app_umask_oct)
-        logger.info('dirs and files are ready to rock.')
+        logger.info('Creating necessary directories and files with needed permissions (exist_ok=True).')
+        create_necessary_dirs_with()
+        # create_necessary_files()
+        logger.info('Directories and files are ready to rock.')
+        """ [alembic upgrade head] 
+        this command will create db if not created, and apply alembic migrations to it to HEAD or last migration,
+        migrations will upgrade database in multiple steps from '/alembic/versions/' dir
         """
-        alembic upgrade head
-        """
-        alembic_config = config.Config(settings.ALEMBIC_CONFIG_PATH)
-        command.upgrade(config = alembic_config, revision = 'head')
+        # alembic_config = config.Config(settings.ALEMBIC_CONFIG_PATH)
+        # command.upgrade(config = alembic_config, revision = 'head')
         with SessionFactory() as session:
             session.execute(select(1))
-        logger.debug('Database is ready for transactions')
-
+        logger.debug('Database is healthy and ready for transactions')
+    except sqlalchemy.exc.OperationalError as e:
+        logger.critical('Error when trying to access database', e)
     except Exception as e:
-        logger.error('Error when trying to select db', e)
+        logger.critical('Error when trying to create dirs and files or select db', e)
         raise e
-
-    finally:
-        session.close()
 
 
 def main():
-    logger.info("Initializing service and creating needed directories and files(exist_ok=True).")
+    logger.info("Initializing service.")
     init()
     logger.info("Service finished initializing.")
     return

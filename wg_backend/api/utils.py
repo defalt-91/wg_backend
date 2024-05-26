@@ -1,8 +1,10 @@
 import logging
+import os
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from subprocess import CompletedProcess
 from typing import Any, Callable
 
 import emails  # type: ignore
@@ -11,9 +13,13 @@ from fastapi.routing import APIRoute
 from jinja2 import Template
 from jose import jwt
 
-from wg_backend.core.settings import get_settings
+from wg_backend.core.settings import execute, get_settings
+from wg_backend.models.peer import Peer
+from wg_backend.schemas.Peer import DBPlusStdoutPeer, DbDataPeer, StdoutDumpPeer
 
 settings = get_settings()
+logging.basicConfig(level = settings.LOG_LEVEL)
+logger = logging.getLogger(__name__)
 
 
 class TimedRoute(APIRoute):
@@ -135,3 +141,61 @@ def verify_password_reset_token(token: str) -> str | None:
         return str(decoded_token["sub"])
     except jwt.JWTError:
         return None
+
+
+def get_wg_dump_data() -> CompletedProcess[str] | CompletedProcess | int:
+    logger.debug(f"loading dump data from {settings.WG_INTERFACE_NAME} wg interface")
+    cmd = ["sudo", "wg", "show", settings.WG_INTERFACE_NAME, "dump"]
+    return execute(cmd)
+
+
+def wg_set_cmd(peer: Peer) -> CompletedProcess[str] | CompletedProcess | int:
+    cmd = ["sudo", 'wg', 'set', settings.WG_INTERFACE_NAME, "peer", peer.public_key, "remove"]
+    logger.debug(f"set {peer.friendly_name} directly to wg interface")
+    return execute(cmd)
+
+
+def wg_add_conf_cmd(peers_len: int) -> CompletedProcess[str] | CompletedProcess | int:
+    cmd = ["sudo", "wg", "addconf", settings.WG_INTERFACE_NAME, settings.wg_if_peers_config_file_path]
+    logger.debug(f"adding {peers_len} peers directly to wg interface")
+    return execute(cmd)
+
+
+def wg_show_transfer_cmd() -> CompletedProcess[str] | CompletedProcess | int:
+    cmd = ["sudo", "wg", "show", settings.WG_INTERFACE_NAME, "transfer"]
+    logger.debug("running ==> \t".join(cmd))
+    return execute(cmd)
+
+
+def wg_show_lha_cmd() -> CompletedProcess[str] | CompletedProcess | int:
+    cmd = ["sudo", "wg", "show", settings.WG_INTERFACE_NAME, "latest-handshakes"]
+    logger.debug("running ==> \t".join(cmd))
+    return execute(cmd)
+
+
+def get_full_config(peers_db_data: list[Any], dump_result: CompletedProcess | int) -> dict[
+                                                                                          str, DBPlusStdoutPeer] | None:
+    full_config: dict[str, DBPlusStdoutPeer] = dict()
+    if dump_result.stderr:
+        print(dump_result.stderr)
+        return None
+    # stmt = select(Peer.id, Peer.public_key, Peer.name, Peer.enabled, Peer.created_at, Peer.updated_at)
+    # peers_data = session.execute(stmt).fetchall()
+    dump_peers_str_list = dump_result.stdout.strip()
+    skipped_interface_str = dump_peers_str_list.split(os.linesep)[1::]
+    """ loading db data """
+    peers_list = [DbDataPeer.model_validate(db_data) for db_data in peers_db_data]
+    """ loading dump data """
+    peers_dump_data = [StdoutDumpPeer.from_dump_stdout(db_data) for db_data in skipped_interface_str]
+    for db_peer in peers_list:
+        """" adding db data """
+        full_config[db_peer.public_key] = DBPlusStdoutPeer(**db_peer.model_dump(exclude_none = True))
+        for dump_peer in peers_dump_data:
+            if db_peer.public_key == dump_peer.public_key:
+                """" adding dump data """
+                full_config[db_peer.public_key].last_handshake_at = dump_peer.last_handshake_at,
+                full_config[db_peer.public_key].transfer_rx = dump_peer.transfer_rx,
+                full_config[db_peer.public_key].transfer_tx = dump_peer.transfer_tx,
+                full_config[db_peer.public_key].persistent_keepalive = dump_peer.persistent_keepalive
+                break
+    return full_config

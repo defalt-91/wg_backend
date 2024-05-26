@@ -6,7 +6,7 @@ from ipaddress import IPv4Interface, IPv6Interface
 from pathlib import Path
 from typing import Literal, Optional, Self
 
-from pydantic import Field, IPvAnyAddress, IPvAnyInterface, computed_field, model_validator
+from pydantic import Field, IPvAnyAddress, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -75,25 +75,17 @@ class BaseConfig(BaseSettings):
     model_config = SettingsConfigDict(env_file = BASE_DIR / ".env", env_file_encoding = 'utf-8')
     # APP_USER: str | int = 1000
     # APP_GROUP: str | int = 1000
-    """ rwx for owner, wx for group, others none"""
-
-    @computed_field()
-    @property
-    def app_umask_oct(self) -> int:
-        return 0o777
 
 
-    GUNICORN_PORT: int = 8000
-    DIST_DIR: Path = (BASE_DIR / "dist").resolve()
+    LOG_LEVEL: Literal["NOTSET", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "DEBUG"
+    DIST_DIR: Path = BASE_DIR / "dist"
     TMP_DIR: Path = Path('tmp')
     RUN_DIR: Path = Field(default = Path("run"))
     ALEMBIC_CONFIG_PATH: Path | None = BASE_DIR / 'alembic.ini'
-    LOG_LEVEL: Literal["NOTSET", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] | None = None
     DOMAIN: str = "localhost"
     SECRET_KEY: str = Field(default = secrets.token_urlsafe(32))
     API_ADDRESS: str = "/api/v1"
     ALGORITHM: Optional[str] = "HS256"
-
 
     """
     sqlalchemy configs
@@ -106,6 +98,7 @@ class BaseConfig(BaseSettings):
     """ 
     gunicorn confs
      """
+    GUNICORN_PORT: int = 8000
     PROJECT_NAME: str = Field(default = "gunicorn")
     # GUNICORN_BIND: str = '0.0.0.0:8080'
     LOGS_DIR_PATH: Path = Field(default = Path("var/log/gunicorn"))
@@ -127,7 +120,7 @@ class BaseConfig(BaseSettings):
     """
     WG_INTERFACE_NAME: str = "wg0"
     WG_CONFIG_DIR_PATH: Path = Field(default = Path('etc/wireguard'))
-    WG_SUBNET: IPv4Interface | IPv6Interface | None = None
+    WG_SUBNET: IPv4Interface | IPv6Interface = Field(default = '10.200.200.0/24')
     NET_DEVICE: str = Field(default_factory = find_local_network_device(find_interface = True))
     WG_HOST_IP: IPvAnyAddress = Field(default_factory = find_local_network_device(find_interface = False))
     WG_DEFAULT_ADDRESS: str = "10.8.0.x"
@@ -169,19 +162,12 @@ class BaseConfig(BaseSettings):
         if self.DEBUG:
             self.LOG_LEVEL = "DEBUG" if not self.DEBUG else self.LOG_LEVEL
             self.DIST_DIR = self.DIST_DIR / "debug"
-            # self.PROJECT_NAME = f"{self.PROJECT_NAME}-debug"
-            # self.LOGS_DIR_PATH = self.DIST_DIR / self.LOGS_DIR_PATH
-            # self.SQLITE_DIR_PATH = self.DIST_DIR / self.SQLITE_DIR_PATH
-            # self.WG_CONFIG_DIR_PATH = self.DIST_DIR / self.WG_CONFIG_DIR_PATH
-            # self.TMP_DIR = self.DIST_DIR / "tmp"
-            # self.RUN_DIR = self.DIST_DIR / "run"
+            self.PROJECT_NAME = f"{self.PROJECT_NAME}-debug"
         else:
             """   PRODUCTION mode configurations    """
+            self.LOG_LEVEL = "WARNING" if not self.DEBUG else self.LOG_LEVEL
             self.DIST_DIR = self.DIST_DIR / "production"
             self.RUN_DIR = self.DIST_DIR / self.RUN_DIR
-            # self.GUNICORN_BIND = f"unix://{self.RUN_DIR / self.PROJECT_NAME}.sock"
-            # self.PROJECT_NAME = f"{self.PROJECT_NAME}"
-            # self.WG_CONFIG_DIR_PATH
 
         self.LOGS_DIR_PATH = self.DIST_DIR / self.LOGS_DIR_PATH
         self.SQLITE_DIR_PATH = self.DIST_DIR / self.SQLITE_DIR_PATH
@@ -191,22 +177,28 @@ class BaseConfig(BaseSettings):
         self.PID_FILE_DIR = self.DIST_DIR / self.PID_FILE_DIR
         if not self.SQLITE_FILE_NAME:
             self.SQLITE_FILE_NAME = f"{self.PROJECT_NAME}.db"
-        if not self.WG_SUBNET:
-            self.WG_SUBNET = IPvAnyInterface(f"{self.WG_HOST_IP}/24")
+        if not self.WG_POST_UP:
+            # iptables -t nat -I POSTROUTING 1 -s 10.200.200.0/24 -o eth0 -j MASQUERADE
+            # iptables -I FORWARD 1 -i wg0 -j ACCEPT;
+            # iptables -I FORWARD 1 -o wg0 -j ACCEPT;
+            self.WG_POST_UP = (
+                f"iptables -t nat -A POSTROUTING -s {self.WG_SUBNET} -o {self.NET_DEVICE} -j MASQUERADE; "
+                f"iptables -A INPUT -p udp -m udp --dport {self.WG_HOST_PORT} -j ACCEPT; "
+                f"iptables -A FORWARD -i {self.WG_INTERFACE_NAME} -o %i -j ACCEPT; "
+                f"iptables -A FORWARD -i %i -o {self.WG_INTERFACE_NAME} -j ACCEPT; "
+                f"wg addconf %i {self.wg_if_peers_config_file_path};"
+            )
+            # iptables -t nat -A POSTROUTING -s ${WG_DEFAULT_ADDRESS.replace('x', '0')}/24 -o ${WG_DEVICE} -j MASQUERADE;
         if not self.WG_POST_DOWN:
+            # iptables -t nat -D POSTROUTING -s 10.200.200.0/24 -o eth0 -j MASQUERADE
+            # iptables -D FORWARD -i wg0 -j ACCEPT;
+            # iptables -D FORWARD -o wg0 -j ACCEPT;
             self.WG_POST_DOWN = (
                 f"iptables -t nat -D POSTROUTING -s {self.WG_SUBNET} -o {self.NET_DEVICE} -j MASQUERADE; "
                 f"iptables -D INPUT -p udp -m udp --dport {self.WG_HOST_PORT} -j ACCEPT; "
                 f"iptables -A FORWARD -i %i -o {self.WG_INTERFACE_NAME} -j ACCEPT; "
                 f"iptables -A FORWARD -i {self.WG_INTERFACE_NAME} -o %i -j ACCEPT; "
-            )
-        if not self.WG_POST_UP:
-            self.WG_POST_UP = (
-                f"iptables -t nat -A POSTROUTING -s {self.WG_SUBNET} -o {self.NET_DEVICE} -j MASQUERADE; "
-                f"iptables -A INPUT -p udp -m udp --dport {self.WG_HOST_PORT} -j ACCEPT; "
-                f"iptables -A FORWARD -i %i -o {self.WG_INTERFACE_NAME} -j ACCEPT; "
-                f"iptables -A FORWARD -i {self.WG_INTERFACE_NAME} -o %i -j ACCEPT; "
-                f"wg addconf %i {self.wg_if_peers_config_file_path};"
+                f"#SaveConfig = true"
             )
         return self
 
@@ -223,8 +215,8 @@ class BaseConfig(BaseSettings):
     @computed_field  # type: ignore[misc]
     @property
     def gunicorn_bind_value(self) -> str:
-        # if self.DEBUG:
-        #     return f"0.0.0.0:{self.GUNICORN_PORT}"
+        if self.DEBUG:
+            return f"0.0.0.0:{self.GUNICORN_PORT}"
         return f"unix:{self.RUN_DIR / str('gunicorn.' + self.PROJECT_NAME)}.sock"
 
     @computed_field  # type: ignore[misc]
@@ -264,6 +256,14 @@ class BaseConfig(BaseSettings):
     def sqlalchemy_db_uri(self) -> str:
         return f"sqlite:///{self.SQLITE_DIR_PATH}/{self.SQLITE_FILE_NAME}"
 
+    """ 
+    rwx for owner, wx for group, others none
+    """
+
+    @computed_field()
+    @property
+    def app_umask_oct(self) -> int:
+        return 0o700
     # @computed_field  # type: ignore[misc]
     # @property
     # def wg_subnet(self) -> PostgresDsn:

@@ -4,8 +4,10 @@ from io import StringIO
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import Response, StreamingResponse
+from sqlalchemy import select
+
+from wg_backend.api import exceptions, utils
 from wg_backend.api.deps import get_current_active_superuser
-from wg_backend.api.utils import TimedRoute
 from wg_backend.crud.crud_peer import crud_peer
 from wg_backend.crud.crud_wgserver import crud_wg_interface
 from wg_backend.db.session import SessionDep
@@ -20,7 +22,7 @@ from wg_backend.schemas.Peer import (
     StdoutRxTxPlusLhaPeer
 )
 
-peer_router = APIRouter(route_class = TimedRoute)
+peer_router = APIRouter(route_class = utils.TimedRoute)
 
 
 @peer_router.get(
@@ -40,13 +42,16 @@ async def get_peers_rxtx() -> list[StdoutRxTxPlusLhaPeer]:
     response_model = list[DBPlusStdoutPeer],
     response_model_exclude_none = True,
     response_model_exclude_unset = True,
-    response_model_exclude = {},
+    # response_model_exclude = {},
 )
 async def peer_list(session: SessionDep):
-    """
-    Peers list
-    """
-    data = crud_wg_interface.get_full_config(session)
+    """ Peers list """
+    stmt = select(Peer.id, Peer.public_key, Peer.name, Peer.enabled, Peer.created_at, Peer.updated_at)
+    peers_db_data = session.execute(stmt).fetchall()
+    dump_result = utils.get_wg_dump_data()
+    data = utils.get_full_config(peers_db_data = peers_db_data, dump_result = dump_result)
+    if not data:
+        raise exceptions.server_error(f"can't run wg dump data command.")
     return list(data.values())
 
 
@@ -56,26 +61,30 @@ async def peer_list(session: SessionDep):
     dependencies = [Depends(get_current_active_superuser)],
     response_model_exclude_none = True,
     response_model_exclude_unset = True,
-    response_model_exclude = {},
+    # response_model_exclude = {},
 )
 async def create_peer(
         peer_in: PeerCreate,
         session: SessionDep,
-        presharedKey: bool = True,
+        preshared_key: bool = True,
         interface_id: int | None = 1
 ):
     """ Create Wireguard interface peer """
     interface = crud_wg_interface.get_if_db(session, interface_id = interface_id)
-    new_schema_peer: PeerCreate = PeerCreateForInterface.create_from_if(
+    new_schema_peer: PeerCreateForInterface = PeerCreateForInterface.create_from_if(
         db_if = interface,
-        peer_in = peer_in,
+        peer_in = peer_in
     )
     create_dict = new_schema_peer.model_dump()
-    if not presharedKey:
+    if not preshared_key:
         del create_dict['preshared_key']
     new_db_peer = crud_peer.create(session, obj_in = create_dict)
-    peers = interface.peers
-    crud_wg_interface.sync_peers_config_file_to_interface(peers = peers)
+    # peers = interface.peers
+    # if len(peers) >= 1:
+    peers = crud_wg_interface.create_write_peers_config_file(peers = interface.peers)
+    res = utils.wg_add_conf_cmd(peers)
+    if res.stderr:
+        raise exceptions.server_error(f"Error when trying to create_peer with addconf to wg. {res.stderr}")
     return new_db_peer
 
 
@@ -87,16 +96,20 @@ async def create_peer(
 async def update_peer(
         peer_id: uuid.UUID,
         peer: PeerUpdate,
-        session: SessionDep,
+        session: SessionDep
 ):
     db_peer = session.get(Peer, peer_id)
-    updated_peer_dict = peer.model_dump(exclude_none = True, exclude_unset = True)
+    updated_peer_dict = peer.model_dump(exclude_none = True, exclude_unset = True,exclude = {"preshared_key"})
     # updated_peer_dict['allowedIPs'] = ",".join(peer.allowedIPs)
     updated_peer = crud_peer.update(session, db_obj = db_peer, obj_in = updated_peer_dict)
     if not updated_peer.enabled:
-        crud_wg_interface.remove_peer_from_if(updated_peer)
+        utils.wg_set_cmd(updated_peer)
     else:
-        crud_wg_interface.sync_peers_config_file_to_interface(peers = session.query(WGInterface).one().peers)
+        peers = session.query(WGInterface).one().peers
+        crud_wg_interface.create_write_peers_config_file(peers = peers)
+        res = utils.wg_add_conf_cmd(peers)
+        if res.stderr:
+            raise exceptions.server_error(f"Error when trying to update peer with addconf to wg.{res.stderr}")
     return updated_peer
 
 
@@ -107,7 +120,7 @@ async def update_peer(
 )
 async def delete_peer(peer_id: uuid.UUID, session: SessionDep):
     deleted_peer = crud_peer.remove(session = session, item_id = peer_id)
-    crud_wg_interface.remove_peer_from_if(deleted_peer)
+    utils.wg_set_cmd(deleted_peer)
     return deleted_peer
 
 

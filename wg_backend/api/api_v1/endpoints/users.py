@@ -102,7 +102,7 @@ async def update_user_me(
         existing_email = get_user_by_email(session = session, email = user_in.email)
         if existing_email and existing_email.id != current_user.id:
             raise exceptions.email_exist()
-    user = update_user(session = session, db_user=current_user, user_in=user_in)
+    user = update_user(session = session, db_user = current_user, user_in = user_in)
     return user
 
 
@@ -174,7 +174,7 @@ async def update_user_endpoint(
     """Update a user."""
     user = session.query(User).get(user_id)
     if not user:
-        raise exceptions.user_not_exist_username()
+        raise exceptions.user_not_found()
     if user_in.username:
         existing_username = get_user_by_username(session = session, username = user_in.username)
         if existing_username and existing_username.id != user_id:
@@ -185,4 +185,9 @@ async def update_user_endpoint(
         if existing_email and existing_email.id != user_id:
             # if existing_email:
             raise exceptions.email_exist()
+    if user_in.client_id:
+        existing_client_id = get_user_by_client_id(session = session, client_id = user_in.client_id)
+        if existing_client_id and existing_client_id.id != user_id:
+            # if existing_email:
+            raise exceptions.client_id_exist()
     return update_user(session = session, db_user = user, user_in = user_in)

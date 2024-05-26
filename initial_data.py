@@ -1,12 +1,13 @@
 import logging
 
 from sqlalchemy.orm import Session
-from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
+from sqlalchemy.orm import exc as sqlalchemy_exceptions
 
 from wg_backend.core.settings import get_settings
 from wg_backend.crud.crud_user_fn import authenticate, create_user
 from wg_backend.crud.crud_wgserver import crud_wg_interface
 from wg_backend.db.session import SessionFactory
+from wg_backend.models.wg_interface import WGInterface
 from wg_backend.schemas.user import UserCreate
 from wg_backend.schemas.wg_interface import WGInterfaceCreate
 
@@ -31,26 +32,22 @@ def init_db(db: Session) -> None:
         )
         super_user = create_user(session = db, user_create = user_in)
         logger.debug(f"newly created superuser is: {super_user.username}")
-        logger.debug("Superuser created")
+        logger.debug("Superuser created.")
     else:
         logger.debug("superuser already exists.")
     """ load peer config from db or create one"""
     try:
-        interface = crud_wg_interface.get_one(session = db)
-        logger.debug("loading existing interface from database.")
-    except NoResultFound:
+        interface = session.query(WGInterface).one()
+        logger.debug(f"loading existing {interface.interface} config from database.")
+    except sqlalchemy_exceptions.NoResultFound:
         logger.debug("No interface configuration found in database, creating one ...")
         obj_in = WGInterfaceCreate(interface = settings.WG_INTERFACE_NAME).model_dump()
-        orm_wg_server = crud_wg_interface.create(db, obj_in = obj_in)
-        logger.debug("Wireguard db interface created.")
-    except MultipleResultsFound:
-        logger.debug("there are multiple interfaces in database, loading last one ...")
-        # orm_wg_server = crud_wg_interface.get_multi(db=db).pop()
-    except Exception as e:
-        logger.critical('there is a problem loading interface configs from db', e)
+        created_orm_wg_if = crud_wg_interface.create(db, obj_in = obj_in)
+        logger.info("Wireguard db interface created.")
+        logger.info(f"newly created interface in db is => {created_orm_wg_if.interface}.")
+    except sqlalchemy_exceptions.MultipleResultsFound:
+        logger.debug("there are multiple interfaces in database.")
     finally:
-        # interface = db.query(interface).one()
-        # crud_wg_interface.create_wg_quick_config_file(session = db,interface_id=1)
         logger.debug("everything is ready for wg_backend to start.")
 
 

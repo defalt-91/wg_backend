@@ -113,10 +113,10 @@ def wg_add_peer_error() -> HTTPException:
 
 
 @lru_cache()
-def server_error() -> HTTPException:
+def server_error(msg:str) -> HTTPException:
     return HTTPException(
         status_code = status.HTTP_500_INTERNAL_SERVER_ERROR,
-        detail = "Somthing bad happened.",
+        detail = msg,
     )
 
 

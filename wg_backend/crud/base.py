@@ -26,7 +26,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         logging.basicConfig(level = logging.INFO)
         self.logger = logging.getLogger(__name__)
 
-    def create(self, session: Session, *, obj_in: CreateSchemaType) -> ModelType:
+    def create(self, session: Session, *, obj_in: CreateSchemaType) -> ModelType | None:
         obj_in_data = jsonable_encoder(obj_in)
         db_obj = self.model(**obj_in_data)  # type: ignore
         return self.save(session = session, obj = db_obj)
