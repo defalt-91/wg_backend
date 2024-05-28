@@ -41,22 +41,22 @@ third will run this app with uvicorn(a very nice server) on specified port in lo
 
 1. sudo useradd -M -N http-user -p 'password'
 
-#### this will create a user with name of gunicorn and no home dir and no user group with same name (you can see what this command do with 'useradd -h')
+* this will create a user with name of gunicorn and no home dir and no user group with same name (you can see what this command do with 'useradd -h')
 
 2. sudo useradd -M -N gunicorn -p 'password' -G sudo
 
 #### same as before but add it to sudo group
 
 another user for gunicorn to actually use it for server functionality (User and Group attributes in .service file)
-
+* you should change DIST_DIR=/, DEBUG=false,LOG_LEVEL=WARNING or ERROR in .env file. but app will work in prod mode with just DEBUG=false, it will save it files under '${project-dir}/dist/production' folder and its LOG_LEVEL will be INFO  
 1. sudo mv ./prod_dir/gunicorn.service /etc/systemd/system/;
 2. sudo mv ./prod_dir/gunicorn.socket /etc/systemd/system/;
 3. sudo systemctl enable gunicorn (for starting after server restart)
 4. sudo systemctl start gunicorn.socket && sudo systemctl start gunicorn.service
 5. mv ./prod_dir/wg_backend.nginx.conf /etc/nginx/(sites-enabled or conf.d)
-6. sudo nginx -s reload
+6. sudo systemctl restart nginx
 
-   : if there is a problem running app, its permission problem
+* if there is a problem running app, its permission problem
 
 # ready to go
 
