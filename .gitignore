@@ -1,7 +1,8 @@
 .prettierrc
+*.env.*
 tmp/
 env.ini
-.env
+*.env
 docker-compose.yml
 dist
 wg.py

@@ -2,7 +2,6 @@ import logging
 
 from fastapi import FastAPI
 from starlette.middleware import cors, trustedhost  # gzip,; sessions,; authentication
-
 from wg_backend.api.api_v1.api import v1_api_router
 from wg_backend.core.settings import get_settings
 from wg_backend.middlewares.wgstartup import wg_quick_lifespan

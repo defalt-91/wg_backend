@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import time
@@ -5,17 +6,17 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from subprocess import CompletedProcess
-from typing import Any, Callable
+from typing import Any, Callable, Type
 
-import emails  # type: ignore
+import emails
 from fastapi import Request, Response
 from fastapi.routing import APIRoute
 from jinja2 import Template
 from jose import jwt
-
 from wg_backend.core.settings import execute, get_settings
 from wg_backend.models.peer import Peer
-from wg_backend.schemas.Peer import DBPlusStdoutPeer, DbDataPeer, StdoutDumpPeer
+from wg_backend.models.wg_interface import WGInterface
+from wg_backend.schemas.Peer import DBPlusStdoutPeer, DbDataPeer, StdoutDumpPeer, StdoutRxTxPlusLhaPeer
 
 settings = get_settings()
 logging.basicConfig(level = settings.LOG_LEVEL)
@@ -31,9 +32,6 @@ class TimedRoute(APIRoute):
             response: Response = await original_route_handler(request)
             duration = time.time() - before
             response.headers["X-Response-Time"] = str(duration)
-            # print(f"route duration: {duration}")
-            # print(f"route response: {response}")
-            # print(f"route response headers: {response.headers}")
             return response
 
         return custom_route_handler
@@ -104,9 +102,7 @@ def generate_reset_password_email(email_to: str, email: str, token: str) -> Emai
     return EmailData(html_content = html_content, subject = subject)
 
 
-def generate_new_account_email(
-        email_to: str, username: str, password: str
-) -> EmailData:
+def generate_new_account_email(email_to: str, username: str, password: str) -> EmailData:
     project_name = settings.PROJECT_NAME
     subject = f"{project_name} - New account for user {username}"
     html_content = render_email_template(
@@ -143,27 +139,52 @@ def verify_password_reset_token(token: str) -> str | None:
         return None
 
 
-def get_wg_dump_data() -> CompletedProcess[str] | CompletedProcess | int:
-    logger.debug(f"loading dump data from {settings.WG_INTERFACE_NAME} wg interface")
-    cmd = ["sudo", "wg", "show", settings.WG_INTERFACE_NAME, "dump"]
-    return execute(cmd)
-
-
 def wg_set_cmd(peer: Peer) -> CompletedProcess[str] | CompletedProcess | int:
+    cmd = [
+        "sudo",
+        'wg',
+        'set',
+        settings.WG_INTERFACE_NAME,
+        "peer",
+        peer.public_key,
+        "allowed-ips",
+        peer.address,
+    ]
+    if peer.persistent_keepalive:
+        cmd.extend(["persistent-keepalive", str(peer.persistent_keepalive)])
+    if peer.preshared_key:
+        key_file_path = settings.tmp_dir_path / peer.id.hex
+        with open(key_file_path, "w+") as key_file:
+            key_file.write(peer.preshared_key)
+        cmd.extend(["preshared-key", key_file_path])
+        proc = execute(cmd)
+        os.remove(key_file_path)
+    else:
+        proc = execute(cmd)
+    return proc
+
+
+def wg_set_rm_cmd(peer: Peer) -> CompletedProcess[str] | CompletedProcess | int:
     cmd = ["sudo", 'wg', 'set', settings.WG_INTERFACE_NAME, "peer", peer.public_key, "remove"]
-    logger.debug(f"set {peer.friendly_name} directly to wg interface")
+    # logger.debug(f"set {peer.name} directly to wg interface")
     return execute(cmd)
 
 
 def wg_add_conf_cmd(peers_len: int) -> CompletedProcess[str] | CompletedProcess | int:
     cmd = ["sudo", "wg", "addconf", settings.WG_INTERFACE_NAME, settings.wg_if_peers_config_file_path]
-    logger.debug(f"adding {peers_len} peers directly to wg interface")
+    # logger.debug(f"adding {peers_len} peers directly to wg interface")
+    return execute(cmd)
+
+
+def wg_show_dump_cmd() -> CompletedProcess[str] | CompletedProcess | int:
+    cmd = ["sudo", "wg", "show", settings.WG_INTERFACE_NAME, "dump"]
+    # logger.debug(f"loading dump data from {settings.WG_INTERFACE_NAME} wg interface")
     return execute(cmd)
 
 
 def wg_show_transfer_cmd() -> CompletedProcess[str] | CompletedProcess | int:
     cmd = ["sudo", "wg", "show", settings.WG_INTERFACE_NAME, "transfer"]
-    logger.debug("running ==> \t".join(cmd))
+    # logger.debug("running ==> \t".join(cmd))
     return execute(cmd)
 
 
@@ -173,14 +194,13 @@ def wg_show_lha_cmd() -> CompletedProcess[str] | CompletedProcess | int:
     return execute(cmd)
 
 
-def get_full_config(peers_db_data: list[Any], dump_result: CompletedProcess | int) -> dict[
-                                                                                          str, DBPlusStdoutPeer] | None:
+def get_full_config(
+        peers_db_data: list[Any],
+        dump_result: CompletedProcess | int
+) -> dict[str, DBPlusStdoutPeer] | None:
     full_config: dict[str, DBPlusStdoutPeer] = dict()
     if dump_result.stderr:
-        print(dump_result.stderr)
         return None
-    # stmt = select(Peer.id, Peer.public_key, Peer.name, Peer.enabled, Peer.created_at, Peer.updated_at)
-    # peers_data = session.execute(stmt).fetchall()
     dump_peers_str_list = dump_result.stdout.strip()
     skipped_interface_str = dump_peers_str_list.split(os.linesep)[1::]
     """ loading db data """
@@ -199,3 +219,64 @@ def get_full_config(peers_db_data: list[Any], dump_result: CompletedProcess | in
                 full_config[db_peer.public_key].persistent_keepalive = dump_peer.persistent_keepalive
                 break
     return full_config
+
+
+def create_wg_quick_config_file(db_wg_if = WGInterface) -> Type[WGInterface]:
+    result = []
+    result.append("# Note: Do not edit this file directly.")
+    result.append(f"# Your changes will be overwritten!{os.linesep}# Server")
+    result.append(f"{os.linesep}[Interface]")
+    result.append(f"PrivateKey = {db_wg_if.private_key}")
+    result.append(f"Address = {settings.WG_SUBNET}")
+    result.append(f"ListenPort = {settings.WG_LISTEN_PORT}")
+    if settings.WG_MTU:
+        result.append(f"MTU = {settings.WG_MTU}")
+    result.append(f"PreUp = {settings.WG_PRE_UP}")
+    result.append(f"PostUp = {settings.WG_POST_UP}")
+    result.append(f"PreDown = {settings.WG_PRE_DOWN}")
+    result.append(f"PostDown = {settings.WG_POST_DOWN}")
+    # result.append(f"SaveConfig = true")
+    logger.debug("Interface config saving...")
+    with open(file = settings.wg_if_config_file_path, mode = "w", encoding = "utf-8") as f:
+        f.write(os.linesep.join(result))
+        logger.debug(f"Interface config saved to -->{settings.wg_if_config_file_path}")
+    return db_wg_if
+
+
+def update_peers_config_file(peers: list[Peer]) -> list[str]:
+    # logger.debug("Peers loading from database ...")
+    conf = []
+    for peer in peers:
+        if not peer.enabled:
+            continue
+        conf.append(f"{os.linesep}[Peer]")
+        if peer.friendly_name:
+            conf.append(f"# friendly_name = {peer.friendly_name}")
+        if peer.friendly_json is not None:
+            value = json.dumps(peer.friendly_json)
+            conf.append(f"# friendly_json = {value}")
+        conf.append(f"# Peer: {peer.name} ({peer.id})")
+        conf.append(f"PublicKey = {peer.public_key}")
+        if peer.preshared_key:
+            conf.append(f"PresharedKey = {peer.preshared_key}")
+        # if peer.endpoint_host:
+        #     conf.append(f"Endpoint = {settings.WG_HOST}:{settings.WG_PORT}")
+        if peer.persistent_keepalive:
+            conf.append(f"PersistentKeepalive = {peer.persistent_keepalive}")
+        conf.append(f"AllowedIPs = {peer.address}/32")
+    with open(file = settings.wg_if_peers_config_file_path, mode = "w", encoding = "utf-8") as f:
+        f.write(os.linesep.join(conf))
+        logger.debug(f"Interface peers config file saved to: {settings.wg_if_peers_config_file_path}")
+    return conf
+
+
+def get_rxtx_lha_config(transfer: str, lha: str) -> list[StdoutRxTxPlusLhaPeer]:
+    if transfer and lha:
+        rxtx_list: list[str] = transfer.strip().split(os.linesep)
+        lha_list: list[str] = lha.strip().split(os.linesep)
+        return [
+            StdoutRxTxPlusLhaPeer.from_rxtx_lha_stdout(
+                rx_rt_str = rxtx_str,
+                lha_str = lha_str
+            ) for (rxtx_str, lha_str) in zip(rxtx_list, lha_list)
+        ]

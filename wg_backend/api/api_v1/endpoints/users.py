@@ -3,7 +3,6 @@ from typing import Any, List
 from fastapi import APIRouter, Depends, Form
 from fastapi.encoders import jsonable_encoder
 from pydantic import EmailStr
-
 from wg_backend.api import exceptions
 from wg_backend.api.deps import CurrentUser, get_current_active_superuser, get_current_active_user
 from wg_backend.crud.crud_user_fn import (create_user, get_user_by_client_id, get_user_by_email, get_user_by_username,
@@ -169,7 +168,6 @@ async def update_user_endpoint(
         session: SessionDep,
         user_id: int,
         user_in: UserUpdate,
-        # current_user: CurrentUser,
 ) -> Any:
     """Update a user."""
     user = session.query(User).get(user_id)

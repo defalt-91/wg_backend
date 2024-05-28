@@ -2,7 +2,7 @@ from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
-
+from wg_backend.sqlmodels import peer
 from alembic import context
 from wg_backend.db.registry import mapper_registry  # noqa
 from wg_backend.models.peer import Peer  # noqa
@@ -17,13 +17,12 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 config.set_section_option(
-    config.config_ini_section, "sqlalchemy.url", str(settings.sqlalchemy_db_uri)
+    config.config_ini_section, "sqlalchemy.url", str(settings.sqlalchemy_database_uri)
 )
 # add your model's MetaData object here
 # add your model's MetaData object here
 # for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
+# target_metadata = peer.SQLModel.metadata
 target_metadata = mapper_registry.metadata
 
 # other values from the config, defined by the needs of env.py,

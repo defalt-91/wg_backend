@@ -10,8 +10,8 @@ v1_api_router = APIRouter(redirect_slashes = False, prefix = "")
 
 v1_api_router.include_router(
     router = login_router,
-    tags = ["login"],
     prefix = "",
+    tags = ["auth"],
     include_in_schema = True,
     deprecated = False,
 )

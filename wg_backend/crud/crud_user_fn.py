@@ -2,7 +2,6 @@ from typing import Any
 
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
-
 from wg_backend.api import exceptions
 from wg_backend.core.security import get_password_hash, verify_password
 from wg_backend.models.user import User

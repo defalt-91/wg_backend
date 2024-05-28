@@ -4,7 +4,6 @@ from fastapi import Depends, HTTPException, Security, status
 from fastapi.security import OAuth2PasswordBearer, SecurityScopes
 from jose import jwt
 from pydantic import ValidationError
-
 from wg_backend.api import exceptions
 from wg_backend.core.settings import get_settings
 from wg_backend.crud import crud_user_fn

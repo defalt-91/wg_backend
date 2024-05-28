@@ -1,13 +1,11 @@
 import logging
 import os
-import uuid
 from random import randint
 
 import qrcode
 from qrcode.image.svg import SvgPathImage
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-
 from wg_backend.api import exceptions
 from wg_backend.core.settings import get_settings
 from wg_backend.crud.base import CRUDBase
@@ -34,31 +32,21 @@ class CRUDPeer(CRUDBase[Peer, PeerCreate, PeerUpdate]):
         return self.save(session, new_peer)
 
 
-    def peer_qrcode_svg(self, session: Session, peer_id: uuid.UUID):
-        peer_config = self.get_peer_config(session, peer_id = peer_id)
+    def peer_qrcode_svg(self, peer: Peer):
+        peer_config = self.get_peer_config(peer)
         return qrcode.make(peer_config, image_factory = SvgPathImage, box_size = 40)
 
     @staticmethod
-    def get_peer_config(session: Session, peer_id: uuid.UUID):
-        stmt = select(
-            Peer.private_key,
-            Peer.preshared_key,
-            Peer.if_public_key,
-            Peer.address,
-            Peer.allowed_ips,
-            Peer.persistent_keepalive
-        ).where(Peer.id == peer_id)
-        data = session.execute(stmt).first()
-        if not data.private_key:
-            raise exceptions.peer_not_found()
+    def get_peer_config(peer: Peer):
         (
+            _,
             private_key,
             preshared_key,
             if_public_key,
             address,
             allowed_ips,
             persistent_keepalive
-        ) = data
+        ) = peer
         result: list[str] = []
         result.append(f"{os.linesep}[Interface]")
         result.append(f"Address = {address}/24")
@@ -73,7 +61,7 @@ class CRUDPeer(CRUDBase[Peer, PeerCreate, PeerUpdate]):
         if preshared_key:
             result.append(f"PresharedKey = {preshared_key}")
         result.append(f"PersistentKeepalive = {persistent_keepalive}")
-        result.append(f"Endpoint = {settings.WG_HOST_IP}:{settings.WG_HOST_PORT}")
+        result.append(f"Endpoint = {settings.WG_HOST_IP}:{settings.WG_LISTEN_PORT}")
         result.append(f"AllowedIPs = {allowed_ips if allowed_ips else 'AllowedIPs = 0.0.0.0/0, ::/0'}")
         return os.linesep.join(result)
 

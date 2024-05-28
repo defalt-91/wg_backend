@@ -4,7 +4,8 @@ from typing import AsyncIterator
 
 from fastapi import FastAPI
 from fastapi.datastructures import State
-
+from wg_backend.api import utils
+from wg_backend.api.utils import wg_add_conf_cmd
 from wg_backend.core.settings import execute, get_settings
 from wg_backend.crud.crud_wgserver import crud_wg_interface
 from wg_backend.db.session import SessionFactory
@@ -38,11 +39,11 @@ async def wg_quick_lifespan(application: FastAPI) -> AsyncIterator[State]:
                 f"device {settings.WG_INTERFACE_NAME}This usually means that "
                 f"your host's kernel does not support WireGuard!", stderr
             )
-        db_wg_if = crud_wg_interface.get(session = session, item_id=1)
-        crud_wg_interface.create_write_wg_quick_config_file(db_wg_if=db_wg_if)
-        if db_wg_if.peers:
-            crud_wg_interface.create_write_peers_config_file(peers=db_wg_if.peers)
+        db_wg_if = crud_wg_interface.get(session = session, item_id = 1)
+        utils.create_wg_quick_config_file(db_wg_if = db_wg_if)
         up_proc = execute(["sudo", "wg-quick", "up", settings.wg_if_config_file_path])
+        utils.update_peers_config_file(peers = db_wg_if.peers)
+        wg_add_conf_cmd(len(db_wg_if.peers))
         if up_proc.returncode:
             logger.critical(f"Loading peers file config to wg interface failed. error: \n\t {up_proc.stderr}")
         else:

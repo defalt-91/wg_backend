@@ -113,7 +113,7 @@ def wg_add_peer_error() -> HTTPException:
 
 
 @lru_cache()
-def server_error(msg:str) -> HTTPException:
+def server_error(msg: str) -> HTTPException:
     return HTTPException(
         status_code = status.HTTP_500_INTERNAL_SERVER_ERROR,
         detail = msg,
@@ -191,6 +191,7 @@ def client_id_exist() -> HTTPException:
         status_code = status.HTTP_404_NOT_FOUND,
         detail = "The user with this client_id already exists in the system.",
     )
+
 
 @lru_cache
 def user_not_exist_username() -> HTTPException:

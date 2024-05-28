@@ -4,6 +4,6 @@ services:
     image: nginx:1.25.1
     volumes:
       - ./prod_dir/wg_backend.nginx.conf:/etc/nginx/conf.d/wg_backend.conf
-      - ./dist/production/run/gunicorn.wg_server.sock:/run/gunicorn.sock
+      - ./dist/production/run/gunicorn.wg_backend.sock:/run/gunicorn.sock
     ports:
       - 8000:8000

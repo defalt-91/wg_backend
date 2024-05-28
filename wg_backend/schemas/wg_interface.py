@@ -30,7 +30,7 @@ class WGInterfaceCreate(WGInterface):
         self.private_key = private_key.stdout.strip()
         self.public_key = public_key.stdout.strip()
         # address = str(settings.WG_HOST_IP),
-        self.port = settings.WG_HOST_PORT
+        self.port = settings.WG_LISTEN_PORT
         if not self.interface:
             self.interface = settings.WG_INTERFACE_NAME
         if settings.WG_MTU:

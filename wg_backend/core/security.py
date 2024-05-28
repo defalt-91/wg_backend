@@ -2,7 +2,6 @@ from datetime import UTC, datetime, timedelta
 
 from jose import jwt
 from passlib.context import CryptContext
-
 from wg_backend.core.settings import get_settings
 
 settings = get_settings()

@@ -4,12 +4,14 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Response
 from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordRequestFormStrict
-
 from wg_backend.api import exceptions
 from wg_backend.api.deps import CurrentUser, get_current_active_superuser
-from wg_backend.api.utils import generate_password_reset_token, generate_reset_password_email, send_email, \
+from wg_backend.api.utils import (
+    generate_password_reset_token,
+    generate_reset_password_email,
+    send_email,
     verify_password_reset_token
-
+)
 from wg_backend.core.security import create_access_token, get_password_hash
 from wg_backend.core.settings import get_settings
 from wg_backend.crud.crud_user_fn import authenticate, get_user_by_email
@@ -44,18 +46,6 @@ async def login_for_access_token(
         data = {"sub": user.username, "scopes": form_data.scopes},
         expires_delta = access_token_expires
     )
-    # """ authorization with cookies"""
-    # response.set_cookie(
-    #     value=access_token,
-    #     key=settings.ACCESS_TOKEN_KEY_NAME,
-    #     domain=settings.DOMAIN,
-    #     path="/",
-    #     expires=datetime.now(UTC) + timedelta(hours=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
-    #     httponly=True,
-    #     secure=False,
-    #     samesite="strict",
-    #     # max_age=30,
-    # )
     return Token(
         access_token = access_token,
         token_type = "bearer",

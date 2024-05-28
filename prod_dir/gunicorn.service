@@ -10,9 +10,9 @@ User=created_user
 Group=created_user
 # another option for an even more restricted service is
 # DynamicUser=yes
-RuntimeDirectory=/home/'created_user'/projects/Develops/wg_backend
-WorkingDirectory=/home/'created_user'/projects/Develops/wg_backend
-ExecStart=.venv/bin/gunicorn -c gunicorn_conf.py
+RuntimeDirectory=/home/'created_user'/wg_backend
+WorkingDirectory=/home/'created_user'/wg_backend
+ExecStart=poetry run prod
 ExecReload=/bin/kill -s HUP $MAINPID
 KillMode=mixed
 TimeoutStopSec=5

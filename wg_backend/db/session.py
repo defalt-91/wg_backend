@@ -1,15 +1,14 @@
-from typing import Annotated, Generator
+from typing import Annotated
 
 from fastapi import Depends
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
-
 from wg_backend.core.settings import get_settings
 
 settings = get_settings()
 
 engine = create_engine(
-    url = settings.sqlalchemy_db_uri,
+    url = settings.sqlalchemy_database_uri,
     pool_pre_ping = True,
     echo = settings.SQLALCHEMY_ECHO_QUERIES_TO_STDOUT,
     future = True,

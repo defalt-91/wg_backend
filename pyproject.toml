@@ -5,6 +5,7 @@ description = "fastapi python backend for wireguard"
 authors = ["defalt91 <armansoltanian@gmail.com>"]
 readme = "README.md"
 package-mode = true
+packages = [{ include = "wg_backend" }]
 repository = "https://github.com/defalt-91/wg_backend"
 
 [tool.poetry.dependencies]
@@ -14,16 +15,21 @@ python-jose = "^3.3.0"
 gunicorn = "^22.0.0"
 qrcode = "^7.4.2"
 tenacity = "^8.3.0"
-alembic = {extras = ["tz"], version = "^1.13.1"}
+alembic = { extras = ["tz"], version = "^1.13.1" }
 pydantic = "^2.7.1"
 pydantic-settings = "^2.2.1"
 python-multipart = "^0.0.9"
 email-validator = "^2.1.1"
-passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+passlib = { extras = ["bcrypt"], version = "^1.7.4" }
 pyroute2 = "^0.7.12"
 emails = "^0.6"
 uvicorn = "^0.29.0"
+sqlmodel = "^0.0.18"
+poetry = "^1.8.3"
 
+[tool.poetry.scripts]
+dev = 'console:run_uvicorn'
+prod = 'console:run_gunicorn'
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.4.4"

@@ -4,38 +4,10 @@ from subprocess import PIPE, Popen
 from typing import Self
 
 from pydantic import BaseModel, Field, model_validator
-
 from wg_backend.core.settings import execute, get_settings
 from wg_backend.models.wg_interface import WGInterface
 
 settings = get_settings()
-
-
-# class PeerBase(BaseModel):
-#     # mtu: int | None = None
-#     persistent_keepalive: int | str | None = None
-#     transfer_rx: int | None = 0
-#     transfer_tx: int | None = 0
-#     last_handshake_at: datetime.datetime | None = None
-#     fwmark: int | None = None
-#     enabled: bool | None = None
-#     endpoint_addr: str | None = None
-#     endpoint_port: int | None = None
-#     address: str | None = None
-#     allowed_ips: str | None = None
-#     name: str | None = None
-#     downloadable_config: bool | None = None
-#     private_key: str | None = None
-#     public_key: str | None = None
-#     preshared_key: str | None = None
-#
-#     @model_validator(mode = "after")
-#     def check_transferRx(self):
-#         if self.transfer_rx is None or not isinstance(self.transfer_rx, int):
-#             self.transfer_tx = 0
-#         if self.transfer_tx is None or not isinstance(self.transfer_tx, int):
-#             self.transfer_tx = 0
-#         return self
 
 
 class PeerUpdate(BaseModel):
@@ -73,7 +45,7 @@ class PeerCreateForInterface(PeerCreate):
         (public_key_stdoutData, public_key_stderrData) = pubkey_proc.communicate(bytes(fresh_private_key, "utf-8"))
         fresh_public_key = public_key_stdoutData.decode().strip()
         return cls(
-            **peer_in.model_dump(exclude_none = True,exclude = {"interface_id"}),
+            **peer_in.model_dump(exclude_none = True, exclude = {"interface_id"}),
             interface_id = db_if.id,
             if_public_key = db_if.public_key,
             private_key = fresh_private_key,
@@ -152,10 +124,3 @@ class DBPlusStdoutPeer(DbDataPeer, StdoutDumpPeer):
     preshared_key: str | None = None
     endpoint_addr: str | None = None
     allowed_ips: str | None = None
-
-
-# class StdoutInterface(BaseModel):
-#     private_key: str | None = None
-#     public_key: str | None = None
-#     listening_port: int | None = None
-#     fwmark: str | None = None

@@ -14,13 +14,12 @@ commented one for more control over application
 
 1. git clone the project
 2. cd to folder
-3. poetry shell
-4. poetry install
-5. mv ./default.env ./.env (and change it to ur need)
-6. sh development.uvicorn.sh (
-   or run python ./backend_pre_start.py && python ./initial_data.py && .venv/bin/uvicorn wg_backend.main:app --reload
-   --port 8000 --host localhost )
-
+3. install poetry with "curl -sSL https://install.python-poetry.org | python3 -"
+4. poetry shell
+5. poetry install
+6. rename the default.env file with: mv ./default.env ./.env (and change it to ur need)
+7. poetry run dev (for development environment)
+8. poetry run prod (for production mode environment)
 ### see localhost:8000/docs or localhost:8000/redoc
 
 (note): these three commands,
