@@ -44,13 +44,11 @@ def update_user(*, session: Session, db_user: User, user_in: UserUpdate) -> Any:
 
 def get_user_by_username(*, session: Session, username: str) -> User | None:
     data = session.query(User).where(User.username == username).one_or_none()
-    # db_data = session.execute(stmt)
     return data
 
 
 def get_user_by_email(*, session: Session, email: str) -> User | None:
     data = session.query(User).where(User.email == email).one_or_none()
-    # db_data = session.execute(stmt)
     return data
 
 

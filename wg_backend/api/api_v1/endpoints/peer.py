@@ -80,13 +80,14 @@ async def create_peer(
     create_dict = new_schema_peer.model_dump()
     if not preshared_key:
         del create_dict['preshared_key']
+    stmt = select(Peer.address)
+    peer_addresses = session.execute(stmt).scalars()
+    addresses_set = set(peer_addresses)
+    new_ip_address = utils.generate_new_address(addresses_set)
+    if not new_ip_address:
+        raise exceptions.wg_max_num_ips_reached()
+    create_dict["address"] = new_ip_address
     new_db_peer = crud_peer.create(session, obj_in = create_dict)
-    # peers = interface.peers
-    # if len(peers) >= 1:
-    # peers = crud_wg_interface.create_write_peers_config_file(peers = interface.peers)
-    # res = utils.wg_add_conf_cmd(peers)
-    # if res.stderr:
-    #     raise exceptions.server_error(f"Error when trying to create_peer with addconf to wg. {res.stderr}")
     set_proc = utils.wg_set_cmd(peer = new_db_peer)
     if set_proc.stderr:
         raise exceptions.server_error("error when trying to add a peer to if")
